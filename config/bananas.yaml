@@ -1,0 +1,23 @@
+total_queries: 150
+objective_metric: "val_best_pgd_acc"
+objective_metric_mode: "max"
+
+num_init: 10
+k: 10
+num_ensemble: 5
+acq_opt_type: "mutation"
+explore_type: "its"
+num_candidates: 100
+num_arches_to_mutate: 2
+max_mutations: 1
+device: "cpu"
+
+predictor:
+  num_ensemble: 3
+  num_layers: 20
+  layer_width: 20
+  batch_size: 32
+  lr: 0.001
+  l1_reg: 0.2
+  epochs: 500
+  loss_type: "mae"

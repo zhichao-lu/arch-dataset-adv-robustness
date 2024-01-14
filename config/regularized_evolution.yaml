@@ -1,0 +1,8 @@
+total_queries: 150
+objective_metric: "val_best_pgd_acc"
+objective_metric_mode: "max"
+
+pop_size: 30
+tournament_size: 10
+mutation_rate: 1.0
+regularized: true
