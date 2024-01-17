@@ -16,7 +16,7 @@ class Arch:
     width3: int
 
     def __str__(self):
-        return f"Arch(D1={self.depth_1}, W1={self.width_1}, D2={self.depth_2}, W2={self.width_2}, D3={self.depth_3}, W3={self.width_3})"
+        return f"Arch(D1={self.depth1}, W1={self.width1}, D2={self.depth2}, W2={self.width2}, D3={self.depth3}, W3={self.width3})"
 
     def __hash__(self) -> int:
         return hash(self.to_tuple())

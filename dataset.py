@@ -9,7 +9,6 @@ from typing import Any, List
 from search_space import Arch, WRNSearchSpace
 
 
-
 class Metric(Enum):
     """
         Metrics for objective
@@ -17,6 +16,10 @@ class Metric(Enum):
     MACS = "macs"
     PARAMS = "params"
 
+    # TRAIN_ACC='train_acc'
+    # TRAIN_LOSS='train_loss'
+    # VAL_ACC='val_acc'
+    # VAL_LOSS='val_loss'
     VAL_BEST_CLEAN_ACC = "val_best_clean_acc"
     VAL_BEST_PGD_ACC = "val_best_pgd_acc"
     VAL_BEST_CW_ACC = "val_best_cw_acc"
@@ -30,19 +33,22 @@ class Metric(Enum):
     TEST_CW_ACC = "test_cw_acc"
     TEST_AA_ACC = "test_aa_acc"
 
+
 @dataclass
 class TrainHistory:
     train_loss: List[float]
-    # train_acc: List[float]
+    train_acc: List[float]
     val_loss: List[float]
     val_clean_acc: List[float]
     val_pgd_acc: List[float]
     val_cw_acc: List[float]
 
+
 @dataclass
 class CorruptAcc:
     noise_acc: float
     # TODO: add more
+
 
 @dataclass
 class AttackAcc:
@@ -53,13 +59,13 @@ class AttackAcc:
     Linf_pgd_lip: float = field(default=None)
     Linf_cw_acc: float = field(default=None)
     Linf_cw_stable: float = field(default=None)
-    Linf_aa_acc: float = field(default=None) # AutoAttack
+    Linf_aa_acc: float = field(default=None)  # AutoAttack
 
     L2_pgd_acc: float = field(default=None)
-    L2_pgd_stable: float = field(default=None)   
+    L2_pgd_stable: float = field(default=None)
     L2_pgd_stable: float = field(default=None)
     L2_cw_acc: float = field(default=None)
-    L2_aa_acc: float = field(default=None) # AutoAttack
+    L2_aa_acc: float = field(default=None)  # AutoAttack
 
 
 @dataclass
@@ -74,15 +80,16 @@ class TrainRecord:
     val_best_pgd_acc: float
     val_best_cw_acc: float
 
-    test_clean_acc: float = field(default=None) 
-    test_corrupt_acc: CorruptAcc = field(default=None) # not supported yet
+    test_clean_acc: float = field(default=None)
+    test_corrupt_acc: CorruptAcc = field(default=None)  # not supported yet
 
     best_model_attack_acc: AttackAcc = field(default=None)
-    last_model_attack_acc: AttackAcc = field(default=None) # not supported yet
+    last_model_attack_acc: AttackAcc = field(default=None)  # not supported yet
+
 
 @dataclass
 class Record:
-    arch_id: int # id (sorted by macs)
+    arch_id: int  # id (sorted by macs)
     arch: Arch
     macs: float
     params: float
@@ -90,7 +97,7 @@ class Record:
 
 
 class NASBenchR_CIFAR10_Dataset:
-    def __init__(self, data_path: str='./data/cifar10.jsonl'):
+    def __init__(self, data_path: str = './data/cifar10.jsonl'):
         raw_data = orjsonl.load(data_path)
 
         self.search_space = WRNSearchSpace()
@@ -103,40 +110,54 @@ class NASBenchR_CIFAR10_Dataset:
             Metric.TEST_AA_ACC,
         ]
 
-        self.dataset = dict() # Arch -> Record
+        self.dataset = dict()  # Arch -> Record
         for raw_record in raw_data:
             _arch = raw_record["arch"]
-            arch = Arch(_arch["D1"], _arch["W1"], _arch["D2"], _arch["W2"], _arch["D3"], _arch["W3"])
+            arch = Arch(_arch["D1"], _arch["W1"], _arch["D2"],
+                        _arch["W2"], _arch["D3"], _arch["W3"])
 
             train_records = []
             for _train_record, _test_best_record in zip(raw_record['train'], raw_record['test_best']):
+                if _test_best_record is None:
+                    _test_best_record = {} 
+
                 train_records.append(
                     TrainRecord(
                         seed=_train_record["seed"],
                         gpu_type=_train_record["gpu_type"],
                         history=TrainHistory(
                             train_loss=_train_record["train_loss"],
+                            train_acc=_train_record["train_acc"],
                             val_loss=_train_record["val_loss"],
-                            val_clean_acc=_train_record["acc"],
+                            val_clean_acc=_train_record["val_acc"],
                             val_pgd_acc=_train_record["pgd"],
                             val_cw_acc=_train_record["cw"],
                         ),
                         val_best_pgd_acc=_train_record["best_pgd"],
                         val_best_cw_acc=_train_record["best_cw"],
 
-                        test_clean_acc=_train_record["clean_acc"],
+                        test_clean_acc=_train_record.get(
+                            "test_clean_acc", None),
                         # test_corrupt_acc=CorruptAcc(
                         #     noise_acc=_train_record["test_noise_acc"],
                         # ),
                         best_model_attack_acc=AttackAcc(
-                            Linf_fgsm_acc=_test_best_record["Linf_fgsm_acc"],
-                            Linf_fgsm_stable=_test_best_record["Linf_fgsm_stable"],
-                            Linf_pgd_acc=_test_best_record["Linf_pgd_acc"],
-                            Linf_pgd_stable=_test_best_record["Linf_pgd_stable"],
-                            Linf_pgd_lip=_test_best_record["Linf_pgd_lip"],
-                            Linf_cw_acc=_test_best_record["Linf_cw_acc"],
-                            Linf_cw_stable=_test_best_record["Linf_cw_stable"],
-                            Linf_aa_acc=_test_best_record["Linf_aa_acc"],
+                            Linf_fgsm_acc=_test_best_record.get(
+                                "Linf_fgsm_acc", None),
+                            Linf_fgsm_stable=_test_best_record.get(
+                                "Linf_fgsm_stable", None),
+                            Linf_pgd_acc=_test_best_record.get(
+                                "Linf_pgd_acc", None),
+                            Linf_pgd_stable=_test_best_record.get(
+                                "Linf_pgd_stable", None),
+                            Linf_pgd_lip=_test_best_record.get(
+                                "Linf_pgd_lip", None),
+                            Linf_cw_acc=_test_best_record.get(
+                                "Linf_cw_acc", None),
+                            Linf_cw_stable=_test_best_record.get(
+                                "Linf_cw_stable", None),
+                            Linf_aa_acc=_test_best_record.get(
+                                "Linf_aa_acc", None),
                         ),
                     )
                 )
@@ -152,11 +173,9 @@ class NASBenchR_CIFAR10_Dataset:
     @property
     def name(self):
         return "NASBenchR_CIFAR10"
-        
 
     def query(self, arch: Arch) -> Record:
         return self.dataset[arch]
-        
 
     def batch_query(self, archs: List[Arch]) -> List[Record]:
         for arch in archs:
@@ -220,14 +239,11 @@ class NASBenchR_CIFAR10_Dataset:
             return np.mean(test_aa_acc)
         else:
             raise ValueError(f"Invalid metric: {metric}")
-        
+
     def get_objective(self, arch: Arch, metric: Metric):
         record = self.query(arch)
         if metric in self.test_metrics:
-            raise ValueError(f"Metric {metric} is only available at test stage")
+            raise ValueError(
+                f"Metric {metric} is only available at test stage")
 
         return self.get_metric(record, metric)
-        
-
-        
-

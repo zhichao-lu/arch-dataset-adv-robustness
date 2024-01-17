@@ -10,7 +10,7 @@ from utils import AverageMeter
 
 logger = logging.getLogger(__name__)
 
-
+# TODO: update
 class Trainer(object):
     """
     Default implementation that handles dataloading and preparing batches, the

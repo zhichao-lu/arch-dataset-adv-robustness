@@ -14,7 +14,9 @@
             "cwd": "${workspaceFolder}/debug",
             "args": [
                 "--model-path",
-                "~/workspace/attack/RobustNASBench-official/ablation_dir/nasbench"
+                "~/workspace/attack/RobustNASBench-official/ablation_dir/nasbench",
+                "--save-path",
+                "../data/cifar10_temp.jsonl"
             ]
         }
     ]
