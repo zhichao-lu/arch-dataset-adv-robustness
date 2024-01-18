@@ -29,8 +29,12 @@ class Metric(Enum):
 
     TEST_CLEAN_ACC = "test_clean_acc"
     TEST_FGSM_ACC = "test_fgsm_acc"
+    TEST_FGSM_STABLE = "test_fgsm_stable"
     TEST_PGD_ACC = "test_pgd_acc"
+    TEST_PGD_STABLE = "test_pgd_stable"
+    TEST_PGD_LIP = "test_pgd_lip"
     TEST_CW_ACC = "test_cw_acc"
+    TEST_CW_STABLE = "test_cw_stable"
     TEST_AA_ACC = "test_aa_acc"
 
 
@@ -136,8 +140,7 @@ class NASBenchR_CIFAR10_Dataset:
                         val_best_pgd_acc=_train_record["best_pgd"],
                         val_best_cw_acc=_train_record["best_cw"],
 
-                        test_clean_acc=_train_record.get(
-                            "test_clean_acc", None),
+                        test_clean_acc=_test_best_record.get("clean_acc", None),
                         # test_corrupt_acc=CorruptAcc(
                         #     noise_acc=_train_record["test_noise_acc"],
                         # ),
@@ -211,7 +214,7 @@ class NASBenchR_CIFAR10_Dataset:
                 for train_record in record.train_records
             ]
             return np.mean(test_clean_acc)
-        elif metric == Metric.CORRUPT_ACC:
+        elif metric == Metric.TEST_CORRUPT_ACC:
             raise NotImplementedError()
         elif metric == Metric.TEST_FGSM_ACC:
             test_fgsm_acc = [
@@ -219,18 +222,42 @@ class NASBenchR_CIFAR10_Dataset:
                 for train_record in record.train_records
             ]
             return np.mean(test_fgsm_acc)
+        elif metric == Metric.TEST_FGSM_STABLE:
+            test_fgsm_stable = [
+                train_record.best_model_attack_acc.Linf_fgsm_stable
+                for train_record in record.train_records
+            ]
+            return np.mean(test_fgsm_stable)
         elif metric == Metric.TEST_PGD_ACC:
             test_pgd_acc = [
                 train_record.best_model_attack_acc.Linf_pgd_acc
                 for train_record in record.train_records
             ]
             return np.mean(test_pgd_acc)
+        elif metric == Metric.TEST_PGD_STABLE:
+            test_pgd_stable = [
+                train_record.best_model_attack_acc.Linf_pgd_stable
+                for train_record in record.train_records
+            ]
+            return np.mean(test_pgd_stable)
+        elif metric == Metric.TEST_PGD_LIP:
+            test_pgd_lip = [
+                train_record.best_model_attack_acc.Linf_pgd_lip
+                for train_record in record.train_records
+            ]
+            return np.mean(test_pgd_lip)
         elif metric == Metric.TEST_CW_ACC:
             test_cw_acc = [
                 train_record.best_model_attack_acc.Linf_cw_acc
                 for train_record in record.train_records
             ]
             return np.mean(test_cw_acc)
+        elif metric == Metric.TEST_CW_STABLE:
+            test_cw_stable = [
+                train_record.best_model_attack_acc.Linf_cw_stable
+                for train_record in record.train_records
+            ]
+            return np.mean(test_cw_stable)
         elif metric == Metric.TEST_AA_ACC:
             test_aa_acc = [
                 train_record.best_model_attack_acc.Linf_aa_acc
