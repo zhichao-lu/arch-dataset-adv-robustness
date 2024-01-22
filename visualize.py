@@ -1,12 +1,17 @@
 # %%
+import scipy.stats
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 from dataset import NASBenchR_CIFAR10_Dataset, Metric
 from search_space import Arch
 dataset = NASBenchR_CIFAR10_Dataset("data/cifar10_temp.jsonl")
+
+root_path = Path("./fig")
+
 # %%
 complete_train_archs = list(dataset.dataset.keys())
 complete_train_archs = set(complete_train_archs)
@@ -51,6 +56,18 @@ metric_aa_list = [
 ]
 
 # %%
+metric_val_list = [Metric.VAL_BEST_CLEAN_ACC,
+                   Metric.VAL_BEST_PGD_ACC,
+                   Metric.VAL_BEST_CW_ACC]
+
+metric_ba_test_list = [
+    Metric.TEST_CLEAN_ACC,
+    Metric.TEST_FGSM_ACC,
+    Metric.TEST_PGD_ACC,
+    Metric.TEST_CW_ACC,
+]
+
+# %% Create data to csv
 dict_list = []
 for arch in complete_train_archs:
     record = dataset.query(arch)
@@ -79,7 +96,7 @@ df
 # %%
 df.to_csv("data/cifar10.csv", index=False)
 
-# %%
+# %% load csv to data
 df = pd.read_csv("data/cifar10.csv")
 df["arch"] = pd.Series([eval(arch) for arch in df["arch"]])
 df.sort_values(by="arch_id", inplace=True)
@@ -90,18 +107,80 @@ df
 # %%
 
 
-def plot_scatter(x_metric, y_metric, df_new=None, **kwargs):
+def plot_hist(x_metric, df_temp, xlabel=None, save=True, suffix="", **kwargs):
+    fig = plt.figure(figsize=(10, 3), dpi=300)
+    default_opts = dict(
+        alpha=0.5,
+        ec="None",
+        stat="probability", kde=True,
+        bins=250,
+    )
+    default_opts.update(kwargs)
+
+    sns.histplot(x=x_metric, data=df_temp, **default_opts)
+    if xlabel is not None:
+        plt.xlabel(xlabel)
+
+    if suffix != "":
+        suffix = "_" + suffix
+
+    if save:
+        plt.savefig(root_path/f"{x_metric if xlabel is None else xlabel}_hist{suffix}.png",
+                    bbox_inches='tight')
+    plt.show()
+
+
+# %%
+df_full = pd.read_csv("debug/RobustNASBench_v1.csv")
+plot_hist("Params", df_full, bins=250,
+          xlabel=Metric.PARAMS.value, suffix="full")
+plot_hist("FLOPs", df_full, bins=250, xlabel=Metric.MACS.value, suffix="full")
+# %%
+plot_hist(Metric.PARAMS.value, df)
+plot_hist(Metric.MACS.value, df)
+
+# %%
+df_temp = df[df[Metric.TEST_CLEAN_ACC.value].notna()]
+plot_hist(Metric.PARAMS.value, df_temp, suffix="ba")
+plot_hist(Metric.MACS.value, df_temp, suffix="ba")
+
+# %%
+df_temp = df[df[Metric.TEST_AA_ACC.value].notna()]
+plot_hist(Metric.PARAMS.value, df_temp)
+plot_hist(Metric.MACS.value, df_temp)
+
+# %%
+
+
+def plot_scatter(x_metric, y_metric, df_new=None, ylim=None, save=True, suffix="", **kwargs):
     if df_new is None:
         df_new = df
     df_temp = df_new[df_new[y_metric].notna()]
+
+    if ylim is not None:
+        df_temp = df_temp[df_temp[y_metric] > ylim[0]]
+        df_temp = df_temp[df_temp[y_metric] < ylim[1]]
+
     fig = plt.figure(figsize=(10, 10), dpi=300)
     default_opts = dict(
-        alpha=0.5, size=1, legend=False, ec=None
+        alpha=0.5, s=25, legend=False, ec=None
     )
     default_opts.update(kwargs)
 
     sns.scatterplot(data=df_temp, x=x_metric, y=y_metric,
                     hue=y_metric, **default_opts)
+    # if ylim is not None:
+    #     plt.ylim(*ylim)
+
+    if suffix != "":
+        suffix = "_" + suffix
+
+    if save:
+        plt.savefig(
+            root_path /
+            f"{x_metric.replace('_', '-')}_{y_metric.replace('_', '-')}_scatter{suffix}.png",
+            bbox_inches='tight')
+
     plt.show()
 
 
@@ -112,22 +191,12 @@ df1 = df[df["test_clean_acc"].notna()]
 df1 = df1[df1["test_clean_acc"] > 84]
 
 sns.scatterplot(data=df1, x="params", y="test_clean_acc",
-                hue="test_clean_acc", alpha=0.5, size=1, legend=False, ec=None)
+                hue="test_clean_acc", alpha=0.5, s=25, legend=False, ec=None)
+# plt.savefig(root_path/"params_test_clean_acc_scatter.pdf")
 plt.show()
 
 
 # %%
-metric_val_list = [Metric.VAL_BEST_CLEAN_ACC,
-                   Metric.VAL_BEST_PGD_ACC,
-                   Metric.VAL_BEST_CW_ACC]
-
-metric_ba_test_list = [
-    Metric.TEST_CLEAN_ACC,
-    Metric.TEST_FGSM_ACC,
-    Metric.TEST_PGD_ACC,
-    Metric.TEST_CW_ACC,
-]
-# %%
 x_metric = Metric.PARAMS.value
 for metric in metric_val_list:
     y_metric = metric.value
@@ -143,16 +212,16 @@ for metric in metric_val_list:
 
 # %%
 x_metric = Metric.PARAMS.value
-for metric in metric_ba_test_list:
+for metric, ylim in zip(metric_ba_test_list, [(85, 89), (58, 63), (52, 58), (50, 56)]):
     y_metric = metric.value
     print(f"{x_metric} vs. {y_metric}")
-    plot_scatter(x_metric, y_metric)
+    plot_scatter(x_metric, y_metric, ylim=ylim)
 # %%
 x_metric = Metric.MACS.value
-for metric in metric_ba_test_list:
+for metric, ylim in zip(metric_ba_test_list, [(85, 89), (58, 63), (52, 58), (50, 56)]):
     y_metric = metric.value
     print(f"{x_metric} vs. {y_metric}")
-    plot_scatter(x_metric, y_metric)
+    plot_scatter(x_metric, y_metric, ylim=ylim)
 # %%
 x_metric = Metric.PARAMS.value
 for metric in metric_aa_list:
@@ -166,29 +235,67 @@ for metric in metric_aa_list:
     print(f"{x_metric} vs. {y_metric}")
     plot_scatter(x_metric, y_metric)
 # %%
+x_metric = Metric.VAL_BEST_CLEAN_ACC.value
+y_metric = Metric.TEST_CLEAN_ACC.value
+plot_scatter(x_metric, y_metric, ylim=(84, 89))
+# %%
 
 
-def plot_reg(x_metric, y_metric, df_new=None, **kwargs):
+def plot_reg(x_metric, y_metric, df_new=None, ylim=None, save=True, suffix="", **kwargs):
     if df_new is None:
         df_new = df
     df_temp = df_new[df_new[y_metric].notna()]
+
+    if ylim is not None:
+        df_temp = df_temp[df_temp[y_metric] > ylim[0]]
+        df_temp = df_temp[df_temp[y_metric] < ylim[1]]
+
     fig = plt.figure(figsize=(10, 10), dpi=300)
     default_opts = dict(
         scatter_kws=dict(alpha=0.5, s=2, color='black'),
         line_kws=dict(color="red", alpha=0.3),
-        ci=95, robust=True
-
+        ci=95
     )
     default_opts.update(kwargs)
 
     sns.regplot(data=df_temp, x=x_metric, y=y_metric,  **default_opts)
+    slope, intercept, r, p, se = scipy.stats.linregress(
+        df_temp[x_metric], df_temp[y_metric])
+    # slope, intercept = np.polyfit(df_new[x_metric], df_new[y_metric], 1)
+    # _x = [df_temp[x_metric].min(), df_temp[x_metric].max()]
+    # _y = [slope*x+intercept for x in _x]
+    # plt.plot(_x, _y, color="green", alpha=0.3)
+    tau = scipy.stats.kendalltau(df_temp[x_metric], df_temp[y_metric])
+
+    plt.text(0.05, 0.95, f'y = {slope:.4f}x + {intercept:.4f}, r = {r:.4f}\nτ = {tau.statistic:.4f}',
+             ha='left', va='top', transform=plt.gca().transAxes)
+    print(f"slope: {slope:.4f} ± {se:.4f}")
+
+    if suffix != "":
+        suffix = "_" + suffix
+
+    if save:
+        plt.savefig(
+            root_path /
+            f"{x_metric.replace('_', '-')}_{y_metric.replace('_', '-')}_regress{suffix}.png",
+            bbox_inches='tight')
+
     plt.show()
 
 
 # %%
 x_metric = Metric.VAL_BEST_CLEAN_ACC.value
 y_metric = Metric.TEST_CLEAN_ACC.value
-plot_reg(x_metric, y_metric)
+plot_reg(x_metric, y_metric, ylim=(84, 89))
+# %%
+x_metric = Metric.TEST_CLEAN_ACC.value
+for metric, ylim in zip(metric_ba_test_list, [None, (56, 64), (50, 58), (50, 58)]):
+    # for metric in metric_ba_test_list:
+    y_metric = metric.value
+    if y_metric == x_metric:
+        continue
+    print(f"{x_metric} vs. {y_metric}")
+    plot_reg(x_metric, y_metric, ylim=ylim)
 # %%
 x_metric = Metric.TEST_CLEAN_ACC.value
 for metric in metric_ba_test_list:
@@ -196,13 +303,40 @@ for metric in metric_ba_test_list:
     if y_metric == x_metric:
         continue
     print(f"{x_metric} vs. {y_metric}")
-    plot_reg(x_metric, y_metric)
+    plot_reg(x_metric, y_metric, suffix="raw")
+# %%
+x_metric = Metric.VAL_BEST_CLEAN_ACC.value
+for metric, ylim in zip(metric_ba_test_list, [(84, 89), (56, 64), (50, 58), (50, 58)]):
+    # for metric in metric_ba_test_list:
+    y_metric = metric.value
+    print(f"{x_metric} vs. {y_metric}")
+    plot_reg(x_metric, y_metric, ylim=ylim)
+# %%
+x_metric = Metric.VAL_BEST_CLEAN_ACC.value
+for metric in metric_ba_test_list:
+    y_metric = metric.value
+    print(f"{x_metric} vs. {y_metric}")
+    plot_reg(x_metric, y_metric, suffix="raw")
 # %%
 x_metric = Metric.TEST_CLEAN_ACC.value
 for metric in metric_aa_list:
     y_metric = metric.value
     print(f"{x_metric} vs. {y_metric}")
     plot_reg(x_metric, y_metric)
+# %%
+# ========== Correlation =============
+# %%
+df_ba = df[df["test_clean_acc"].notna()]
+cols = metric_val_list+metric_ba_test_list
+cols = [m.value for m in cols]
+df_ba = df_ba[cols]
+df_ba
+# %%
+fig = plt.figure(figsize=(10, 10), dpi=300)
+corr_m = df_ba.corr(method="kendall")
+sns.heatmap(corr_m, annot=True, square=True, fmt=".4g")
+plt.savefig(root_path/"corr_ba.png", bbox_inches='tight')
+plt.show()
 # %%
 df_aa = df[df["test_aa_acc"].notna()]
 cols = metric_val_list+metric_ba_test_list+metric_aa_list
@@ -218,41 +352,48 @@ plt.show()
 # ============= Best Archs =============
 
 # %%
-df_aa = df[df["test_aa_acc"].notna()]
-df_best_aa = df_aa.sort_values(by="test_aa_acc", ascending=False)[:20]
-df_best_aa
+topk = 20
+# df_aa = df[df["test_aa_acc"].notna()]
+# df_best_aa = df_aa.sort_values(by="test_aa_acc", ascending=False)[:topk]
+# df_best_aa
+
+df_pgd = df[df[Metric.TEST_PGD_ACC.value].notna()]
+df_best_pgd = df_pgd.sort_values(
+    by=Metric.TEST_PGD_ACC.value, ascending=False)[:topk]
+df_best_pgd
 
 # %%
-
+df_best_arch = df_best_pgd
 fig = plt.figure(figsize=(15, 5), dpi=300)
 plt.subplot(1, 6, 1)
 x_d_axis = dataset.search_space.depth1
 x_w_axis = dataset.search_space.width1
-colors = sns.color_palette("hls", n_colors=20)
+colors = sns.color_palette("hls", n_colors=topk)
 
-xlabels = ["Depth1", "Width1", "Depth2", "Width2", "Depth3", "Width3"]
+xlabels = ["Depth1", "Depth2", "Depth3", "Width1", "Width2", "Width3"]
 
-xss = np.zeros((20, 6), dtype=np.int32)
-yss = np.zeros((20, 6), dtype=np.float32)
+xss = np.zeros((topk, 6), dtype=np.int32)
+yss = np.zeros((topk, 6), dtype=np.float32)
 
-for i, (_, row) in enumerate(df_best_aa.iterrows()):
-    print(f"{row['arch_id']} {row['test_aa_acc']}")
+for i, (_, row) in enumerate(df_best_arch.iterrows()):
+    print(f"{row['arch_id']} {row[Metric.TEST_PGD_ACC.value]}")
     arch_tuple = row["arch"]
     xss[i] = np.array(arch_tuple, dtype=np.int32)
-    yss[i] = row["test_aa_acc"]
+    yss[i] = row[Metric.TEST_PGD_ACC.value]
 
+xss = np.concatenate([xss[:, ::2], xss[:, 1::2]], axis=1)
 
 for i in range(6):
     plt.subplot(1, 6, i+1)
-    for j, c, arch_id in zip(range(20), colors, df_best_aa["arch_id"]):
+    for j, c, arch_id in zip(range(topk), colors, df_best_arch["arch_id"]):
         plt.scatter(xss[j, i], yss[j, i], c=c, s=10, label=arch_id)
 
-    if i%2 == 0:
+    if i < 3:
         plt.xticks(x_d_axis)
-        plt.xlim(3,12)
+        plt.xlim(3, 12)
     else:
         plt.xticks(x_w_axis)
-        plt.xlim(7,17)
+        plt.xlim(7, 17)
 
     plt.xlabel(xlabels[i])
     if i == 5:
@@ -261,61 +402,142 @@ for i in range(6):
     # plt.tight_layout()
 
 fig.tight_layout()
+plt.savefig(root_path/"best-top20-arch.png", bbox_inches='tight')
 plt.show()
 
-#%%
-def plot_hist(x, xlabel, y_metric, df_new=None, **kwargs):
-    if df_new is None:
-        df_new = df
-    df_temp=df_new[df_new[y_metric].notna()]
-    fig = plt.figure(figsize=(10, 5), dpi=300)
-
-    default_opts = dict(
-        alpha=0.5, cbar=True, palette="flare",
-        stat="probability"
-    )
-    default_opts.update(kwargs)
-    
-    sns.histplot(x=x, y=df_temp[y_metric], **default_opts)
-    plt.xlabel(xlabel)
-    plt.show()
 
 # %%
-def plot_violin(x, xlabel, y_metric, df_new=None, **kwargs):
+xlabels = ["Depth1", "Width1", "Depth2", "Width2", "Depth3", "Width3"]
+
+
+def plot_violin(x, xlabel, y_metric, df_new=None, topk=50, save=True, suffix="", **kwargs):
     if df_new is None:
         df_new = df
-    df_temp=df_new[df_new[y_metric].notna()]
+    df_temp = df_new[df_new[y_metric].notna()]
+    topk_args = df_temp[y_metric].argsort()[-topk:]
+
+    _x = x[topk_args]
+    _y = df_temp[y_metric].sort_values()[-topk:].values
+
     fig = plt.figure(figsize=(10, 5), dpi=300)
 
     default_opts = dict(
         orient="x",
         alpha=0.5,
-        palette="flare", hue=x,
+        palette="flare", hue=_x,
+        legend=False,
         density_norm="count",
     )
     default_opts.update(kwargs)
-    
+    assert len(_x) == len(_y)
     # sns.histplot(x=x, y=df_temp[y_metric], **default_opts)
-    sns.violinplot(x=x, y=df_temp[y_metric], **default_opts)
+    sns.violinplot(x=_x, y=_y, **default_opts)
     plt.xlabel(xlabel)
-    plt.legend(loc="lower right")
+    plt.ylabel(y_metric)
+    # plt.legend(loc="lower right")
+
+    if suffix != "":
+        suffix = "_" + suffix
+
+    if save:
+        plt.savefig(
+            root_path /
+            f"best-top{topk}-arch_{xlabel}_{y_metric.replace('_', '-')}{suffix}.png",
+            bbox_inches='tight')
+
     plt.show()
+
+
 # %%
-df_ba=df[df["test_clean_acc"].notna()]
+df_ba = df[df["test_clean_acc"].notna()]
 for i in range(6):
-    x=[arch_tuple[i] for arch_tuple in df_ba["arch"]]
+    x = np.array([arch_tuple[i] for arch_tuple in df_ba["arch"]])
     for metric in metric_ba_test_list:
         y_metric = metric.value
-        print(f"{x_metric} vs. {y_metric}")
+        print(f"{xlabels[i]} vs. {y_metric}")
         # plot_hist(x, xlabels[i], y_metric, df_new=df_ba)
         plot_violin(x, xlabels[i], y_metric, df_new=df_ba)
 
 
 # %%
-df_aa=df[df["test_aa_acc"].notna()]
+df_aa = df[df["test_aa_acc"].notna()]
 for i in range(6):
-    x=[arch_tuple[i] for arch_tuple in df_aa["arch"]]
+    x = [arch_tuple[i] for arch_tuple in df_aa["arch"]]
     y_metric = Metric.TEST_AA_ACC.value
     # plot_hist(x, xlabels[i], y_metric, df_new=df_aa)
     plot_violin(x, xlabels[i], y_metric, df_new=df_aa)
+# %%
+# %%
+
+
+def plot_hist(x, xlabel, y_metric, x_ticks=None, df_new=None, topk=50, save=True, suffix="", **kwargs):
+    if df_new is None:
+        df_new = df
+    df_temp = df_new[df_new[y_metric].notna()]
+
+    topk_args = df_temp[y_metric].argsort()[-topk:]
+
+    _x = x[topk_args]
+
+    fig = plt.figure(figsize=(10, 5), dpi=300)
+
+    default_opts = dict(
+        alpha=0.5, 
+        # ec=None,
+        binwidth=1,
+        bins=5,
+        shrink=0.8,
+        stat="probability"
+    )
+    default_opts.update(kwargs)
+
+    sns.histplot(x=_x, **default_opts)
+    plt.xlabel(xlabel)
+    plt.ylabel(y_metric)
+    plt.xlim(0, 4)
+
+    # if x_ticks is not None:
+    #     x_ticks = [str(t) for t in x_ticks]
+    #     plt.xticks(ticks=list(range(len(x_ticks))),label=x_ticks)
+    if suffix != "":
+        suffix = "_" + suffix
+
+    if save:
+        plt.savefig(
+            root_path /
+            f"best-top{topk}-arch_{xlabel}_{y_metric.replace('_', '-')}_dist{suffix}.png",
+            bbox_inches='tight')
+
+    plt.show()
+
+
+# %%
+df_ba = df[df["test_clean_acc"].notna()]
+x_d_axis = dataset.search_space.depth1
+x_w_axis = dataset.search_space.width1
+
+depth_map = {d: i for i, d in enumerate(x_d_axis)}
+width_map = {d: i for i, d in enumerate(x_w_axis)}
+
+for i in range(6):
+    if i % 2 == 0:
+        x = np.array([depth_map[arch_tuple[i]]
+                     for arch_tuple in df_ba["arch"]])
+        
+        for metric in metric_ba_test_list:
+            y_metric = metric.value
+            print(f"{xlabels[i]} vs. {y_metric}")
+
+            plot_hist(x, xlabels[i], y_metric, x_d_axis, df_new=df_ba)
+    else:
+        x = np.array([width_map[arch_tuple[i]]
+                     for arch_tuple in df_ba["arch"]])
+        
+        for metric in metric_ba_test_list:
+            y_metric = metric.value
+            print(f"{xlabels[i]} vs. {y_metric}")
+
+            plot_hist(x, xlabels[i], y_metric, x_w_axis, df_new=df_ba)
+
+
 # %%
