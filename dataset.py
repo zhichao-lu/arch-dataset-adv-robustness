@@ -2,7 +2,7 @@ import os
 from enum import Enum
 from dataclasses import dataclass, field
 import orjsonl
-from glom import glom
+# from glom import glom
 import numpy as np
 from typing import Any, List
 
@@ -20,6 +20,7 @@ class Metric(Enum):
     # TRAIN_LOSS='train_loss'
     # VAL_ACC='val_acc'
     # VAL_LOSS='val_loss'
+    BEST_EPOCH = 'best_epoch'
     VAL_BEST_CLEAN_ACC = "val_best_clean_acc"
     VAL_BEST_PGD_ACC = "val_best_pgd_acc"
     VAL_BEST_CW_ACC = "val_best_cw_acc"
@@ -84,6 +85,8 @@ class TrainRecord:
     val_best_pgd_acc: float
     val_best_cw_acc: float
 
+    best_epoch: int
+
     test_clean_acc: float = field(default=None)
     test_corrupt_acc: CorruptAcc = field(default=None)  # not supported yet
 
@@ -120,15 +123,19 @@ class NASBenchR_CIFAR10_Dataset:
             arch = Arch(_arch["D1"], _arch["W1"], _arch["D2"],
                         _arch["W2"], _arch["D3"], _arch["W3"])
 
+            assert len(raw_record['train']) == 1 and len(
+                raw_record['test_best']) == 1, f"arch_{raw_record['arch_id']}"
+
             train_records = []
             for _train_record, _test_best_record in zip(raw_record['train'], raw_record['test_best']):
                 if _test_best_record is None:
-                    _test_best_record = {} 
+                    _test_best_record = {}
 
                 train_records.append(
                     TrainRecord(
                         seed=_train_record["seed"],
                         gpu_type=_train_record["gpu_type"],
+                        best_epoch=_train_record["best_epoch"],
                         history=TrainHistory(
                             train_loss=_train_record["train_loss"],
                             train_acc=_train_record["train_acc"],
@@ -140,7 +147,8 @@ class NASBenchR_CIFAR10_Dataset:
                         val_best_pgd_acc=_train_record["best_pgd"],
                         val_best_cw_acc=_train_record["best_cw"],
 
-                        test_clean_acc=_test_best_record.get("clean_acc", None),
+                        test_clean_acc=_test_best_record.get(
+                            "clean_acc", None),
                         # test_corrupt_acc=CorruptAcc(
                         #     noise_acc=_train_record["test_noise_acc"],
                         # ),
