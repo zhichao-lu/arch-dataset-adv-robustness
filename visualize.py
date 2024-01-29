@@ -89,6 +89,22 @@ for arch in complete_train_archs:
             value = dataset.get_metric(record, metric)
             rec_dict[metric.value] = value
 
+    assert len(
+        record.train_records) == 1, f"arch_{record.arch_id}: {len(record.train_records)}"
+    for train_log in record.train_records:
+        best_epoch = train_log.best_epoch
+        history = train_log.history
+        rec_dict.update(dict(
+            best_epoch=best_epoch,
+            train_last_acc=history.train_acc[-1],
+            train_last_loss=history.train_loss[-1],
+            train_best_model_acc=history.train_acc[best_epoch],
+            train_best_model_loss=history.train_loss[best_epoch],
+            val_best_model_acc=history.val_clean_acc[best_epoch],
+            val_best_model_loss=history.val_loss[best_epoch],
+            val_best_model_pgd=history.val_pgd_acc[best_epoch]
+        ))
+
     dict_list.append(rec_dict)
 
 df = pd.DataFrame.from_dict(dict_list)
@@ -104,9 +120,22 @@ df.reset_index(drop=True, inplace=True)
 df
 # %%
 # ============= Plotting =============
+metric_list = [m.value for m in metric_list]
+metric_list2 = ["train_last_acc", 
+                # "train_last_loss", 
+                "train_best_model_acc",
+                # "train_best_model_loss", 
+                "val_best_model_acc", 
+                # "val_best_model_loss", 
+                "val_best_model_pgd"]
+metric_ba_list = [m.value for m in metric_ba_list]
+metric_aa_list = [m.value for m in metric_aa_list]
+
+metric_val_list = [m.value for m in metric_val_list]
+metric_ba_test_list = [m.value for m in metric_ba_test_list]
+
+
 # %%
-
-
 def plot_hist(x_metric, df_temp, xlabel=None, save=True, suffix="", **kwargs):
     fig = plt.figure(figsize=(10, 3), dpi=300)
     default_opts = dict(
@@ -199,39 +228,39 @@ plt.show()
 # %%
 x_metric = Metric.PARAMS.value
 for metric in metric_val_list:
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_scatter(x_metric, y_metric)
 
 # %%
 x_metric = Metric.MACS.value
 for metric in metric_val_list:
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_scatter(x_metric, y_metric)
 
 # %%
 x_metric = Metric.PARAMS.value
 for metric, ylim in zip(metric_ba_test_list, [(85, 89), (58, 63), (52, 58), (50, 56)]):
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_scatter(x_metric, y_metric, ylim=ylim)
 # %%
 x_metric = Metric.MACS.value
 for metric, ylim in zip(metric_ba_test_list, [(85, 89), (58, 63), (52, 58), (50, 56)]):
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_scatter(x_metric, y_metric, ylim=ylim)
 # %%
 x_metric = Metric.PARAMS.value
 for metric in metric_aa_list:
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_scatter(x_metric, y_metric)
 # %%
 x_metric = Metric.MACS.value
 for metric in metric_aa_list:
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_scatter(x_metric, y_metric)
 # %%
@@ -291,7 +320,7 @@ plot_reg(x_metric, y_metric, ylim=(84, 89))
 x_metric = Metric.TEST_CLEAN_ACC.value
 for metric, ylim in zip(metric_ba_test_list, [None, (56, 64), (50, 58), (50, 58)]):
     # for metric in metric_ba_test_list:
-    y_metric = metric.value
+    y_metric = metric
     if y_metric == x_metric:
         continue
     print(f"{x_metric} vs. {y_metric}")
@@ -299,7 +328,7 @@ for metric, ylim in zip(metric_ba_test_list, [None, (56, 64), (50, 58), (50, 58)
 # %%
 x_metric = Metric.TEST_CLEAN_ACC.value
 for metric in metric_ba_test_list:
-    y_metric = metric.value
+    y_metric = metric
     if y_metric == x_metric:
         continue
     print(f"{x_metric} vs. {y_metric}")
@@ -308,33 +337,32 @@ for metric in metric_ba_test_list:
 x_metric = Metric.VAL_BEST_CLEAN_ACC.value
 for metric, ylim in zip(metric_ba_test_list, [(84, 89), (56, 64), (50, 58), (50, 58)]):
     # for metric in metric_ba_test_list:
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_reg(x_metric, y_metric, ylim=ylim)
 # %%
 x_metric = Metric.VAL_BEST_CLEAN_ACC.value
 for metric in metric_ba_test_list:
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_reg(x_metric, y_metric, suffix="raw")
 # %%
 x_metric = Metric.TEST_CLEAN_ACC.value
 for metric in metric_aa_list:
-    y_metric = metric.value
+    y_metric = metric
     print(f"{x_metric} vs. {y_metric}")
     plot_reg(x_metric, y_metric)
 # %%
 # ========== Correlation =============
 # %%
 df_ba = df[df["test_clean_acc"].notna()]
-cols = metric_val_list+metric_ba_test_list
-cols = [m.value for m in cols]
+cols = metric_val_list+metric_list2 + metric_ba_test_list
 df_ba = df_ba[cols]
 df_ba
 # %%
-fig = plt.figure(figsize=(10, 10), dpi=300)
+fig = plt.figure(figsize=(15, 15), dpi=300)
 corr_m = df_ba.corr(method="kendall")
-sns.heatmap(corr_m, annot=True, square=True, fmt=".4g")
+sns.heatmap(corr_m, annot=True, square=True, fmt=".2g")
 plt.savefig(root_path/"corr_ba.png", bbox_inches='tight')
 plt.show()
 # %%
@@ -408,6 +436,7 @@ plt.show()
 
 # %%
 xlabels = ["Depth1", "Width1", "Depth2", "Width2", "Depth3", "Width3"]
+# %%
 
 
 def plot_violin(x, xlabel, y_metric, df_new=None, topk=50, save=True, suffix="", **kwargs):
@@ -434,6 +463,7 @@ def plot_violin(x, xlabel, y_metric, df_new=None, topk=50, save=True, suffix="",
     sns.violinplot(x=_x, y=_y, **default_opts)
     plt.xlabel(xlabel)
     plt.ylabel(y_metric)
+    plt.grid(axis="y")
     # plt.legend(loc="lower right")
 
     if suffix != "":
@@ -449,6 +479,55 @@ def plot_violin(x, xlabel, y_metric, df_new=None, topk=50, save=True, suffix="",
 
 
 # %%
+def plot_stripplot(x, xlabel, y_metric, df_new=None, topk=100, save=True, suffix="", **kwargs):
+    if df_new is None:
+        df_new = df
+    df_temp = df_new[df_new[y_metric].notna()]
+    topk_args = df_temp[y_metric].argsort()[-topk:]
+
+    _x = x[topk_args]
+    _y = df_temp[y_metric].sort_values()[-topk:].values
+
+    fig = plt.figure(figsize=(10, 5), dpi=300)
+
+    default_opts = dict(
+        orient="x",
+        alpha=0.6,
+        palette="flare", hue=_x,
+        legend=False,
+        # jitter=0.2,
+    )
+    violin_default_opts = dict(
+        orient="x",
+        palette="flare", hue=_x,
+        legend=False,
+        density_norm="count",
+    )
+
+    default_opts.update(kwargs)
+    assert len(_x) == len(_y)
+    ax = sns.violinplot(x=_x, y=_y, **violin_default_opts)
+    plt.setp(ax.collections, alpha=.2)
+    sns.stripplot(x=_x, y=_y, ax=ax, **default_opts)
+    plt.xlabel(xlabel)
+    plt.ylabel(y_metric)
+    plt.grid(axis="y")
+    # plt.legend(loc="lower right")
+
+    if suffix != "":
+        suffix = "_" + suffix
+
+    if save:
+        plt.savefig(
+            root_path /
+            f"best-top{topk}-arch_{xlabel}_{y_metric.replace('_', '-')}{suffix}.png",
+            bbox_inches='tight')
+
+    plt.show()
+
+# %%
+
+
 df_ba = df[df["test_clean_acc"].notna()]
 for i in range(6):
     x = np.array([arch_tuple[i] for arch_tuple in df_ba["arch"]])
@@ -456,7 +535,8 @@ for i in range(6):
         y_metric = metric.value
         print(f"{xlabels[i]} vs. {y_metric}")
         # plot_hist(x, xlabels[i], y_metric, df_new=df_ba)
-        plot_violin(x, xlabels[i], y_metric, df_new=df_ba)
+        # plot_violin(x, xlabels[i], y_metric, df_new=df_ba)
+        plot_stripplot(x, xlabels[i], y_metric, df_new=df_ba, topk=100)
 
 
 # %%
@@ -470,7 +550,7 @@ for i in range(6):
 # %%
 
 
-def plot_hist(x, xlabel, y_metric, x_ticks=None, df_new=None, topk=50, save=True, suffix="", **kwargs):
+def plot_hist(x, xlabel, y_metric, x_ticks, df_new=None, topk=100, save=True, suffix="", **kwargs):
     if df_new is None:
         df_new = df
     df_temp = df_new[df_new[y_metric].notna()]
@@ -481,24 +561,27 @@ def plot_hist(x, xlabel, y_metric, x_ticks=None, df_new=None, topk=50, save=True
 
     fig = plt.figure(figsize=(10, 5), dpi=300)
 
+    bins = len(x_ticks)
+
     default_opts = dict(
-        alpha=0.5, 
+        alpha=0.5,
+        discrete=True,
+        bins=bins,
+        binrange=(0, bins),
         # ec=None,
-        binwidth=1,
-        bins=5,
         shrink=0.8,
         stat="probability"
     )
     default_opts.update(kwargs)
 
-    sns.histplot(x=_x, **default_opts)
-    plt.xlabel(xlabel)
-    plt.ylabel(y_metric)
-    plt.xlim(0, 4)
+    ax = sns.histplot(x=_x, **default_opts)
+    plt.xlabel(f"{xlabel} vs. {y_metric}")
+    plt.xlim(-0.5, bins-0.5)
 
-    # if x_ticks is not None:
-    #     x_ticks = [str(t) for t in x_ticks]
-    #     plt.xticks(ticks=list(range(len(x_ticks))),label=x_ticks)
+    if x_ticks is not None:
+        x_ticks = [str(t) for t in x_ticks]
+        plt.xticks(ticks=list(range(len(x_ticks))), labels=x_ticks)
+
     if suffix != "":
         suffix = "_" + suffix
 
@@ -521,23 +604,26 @@ width_map = {d: i for i, d in enumerate(x_w_axis)}
 
 for i in range(6):
     if i % 2 == 0:
-        x = np.array([depth_map[arch_tuple[i]]
-                     for arch_tuple in df_ba["arch"]])
-        
+        x = np.array([
+            depth_map[arch_tuple[i]]
+            for arch_tuple in df_ba["arch"]
+        ])
+
         for metric in metric_ba_test_list:
             y_metric = metric.value
             print(f"{xlabels[i]} vs. {y_metric}")
 
-            plot_hist(x, xlabels[i], y_metric, x_d_axis, df_new=df_ba)
+            plot_hist(x, xlabels[i], y_metric, x_ticks=x_d_axis, df_new=df_ba)
     else:
-        x = np.array([width_map[arch_tuple[i]]
-                     for arch_tuple in df_ba["arch"]])
-        
+        x = np.array([
+            width_map[arch_tuple[i]]
+            for arch_tuple in df_ba["arch"]
+        ])
+
         for metric in metric_ba_test_list:
             y_metric = metric.value
             print(f"{xlabels[i]} vs. {y_metric}")
 
-            plot_hist(x, xlabels[i], y_metric, x_w_axis, df_new=df_ba)
-
+            plot_hist(x, xlabels[i], y_metric, x_ticks=x_w_axis, df_new=df_ba)
 
 # %%
