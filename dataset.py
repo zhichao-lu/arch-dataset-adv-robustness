@@ -4,7 +4,8 @@ from dataclasses import dataclass, field
 import orjsonl
 # from glom import glom
 import numpy as np
-from typing import Any, List
+from typing import Any, List, Union, Iterator
+import datetime
 
 from search_space import Arch, WRNSearchSpace
 
@@ -81,6 +82,8 @@ class TrainRecord:
     seed: int
     gpu_type: str
 
+    timestamp: datetime.date
+
     history: TrainHistory
     val_best_pgd_acc: float
     val_best_cw_acc: float
@@ -135,6 +138,7 @@ class NASBenchR_CIFAR10_Dataset:
                     TrainRecord(
                         seed=_train_record["seed"],
                         gpu_type=_train_record["gpu_type"],
+                        timestamp=datetime.date(*[int(x) for x in _train_record["timestamp"].split("-")]),
                         best_epoch=_train_record["best_epoch"],
                         history=TrainHistory(
                             train_loss=_train_record["train_loss"],
@@ -188,11 +192,14 @@ class NASBenchR_CIFAR10_Dataset:
     def query(self, arch: Arch) -> Record:
         return self.dataset[arch]
 
-    def batch_query(self, archs: List[Arch]) -> List[Record]:
+    def batch_query(self, archs: List[Arch]) -> Iterator[Record]:
         for arch in archs:
             yield self.query(arch)
 
-    def get_metric(self, record: Record, metric: Metric):
+    def get_metric(self, record: Record, metric: Union[Metric, str]):
+        if isinstance(metric, str):
+            metric = Metric(metric)
+
         if metric == Metric.MACS:
             return record.macs
         elif metric == Metric.PARAMS:
@@ -275,7 +282,10 @@ class NASBenchR_CIFAR10_Dataset:
         else:
             raise ValueError(f"Invalid metric: {metric}")
 
-    def get_objective(self, arch: Arch, metric: Metric):
+    def get_objective(self, arch: Arch, metric: Union[Metric, str]):
+        if isinstance(metric, str):
+            metric = Metric(metric)
+            
         record = self.query(arch)
         if metric in self.test_metrics:
             raise ValueError(

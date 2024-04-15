@@ -20,6 +20,9 @@ class Arch:
 
     def __hash__(self) -> int:
         return hash(self.to_tuple())
+    
+    def __eq__(self, other) -> bool:
+        return self.to_tuple() == other.to_tuple()
 
     def to_tuple(self) -> tuple:
         return (self.depth1, self.width1, self.depth2, self.width2, self.depth3, self.width3)
