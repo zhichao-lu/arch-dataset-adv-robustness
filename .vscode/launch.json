@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "Generate Data",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "generate_data.py",
             "console": "integratedTerminal",
@@ -14,9 +14,9 @@
             "cwd": "${workspaceFolder}/debug",
             "args": [
                 "--model-path",
-                "~/workspace/attack/RobustNASBench-official/ablation_dir/nasbench",
+                "~/gitRepo/attack/RobustNASBench-official/ablation_dir/nasbench",
                 "--save-path",
-                "../data/cifar10_temp.jsonl"
+                "../data/cifar10_retrain.jsonl"
             ]
         }
     ]
