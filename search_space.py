@@ -6,6 +6,7 @@ import itertools
 
 import numpy as np
 
+
 @dataclass
 class Arch:
     depth1: int
@@ -20,21 +21,30 @@ class Arch:
 
     def __hash__(self) -> int:
         return hash(self.to_tuple())
-    
+
     def __eq__(self, other) -> bool:
         return self.to_tuple() == other.to_tuple()
 
     def to_tuple(self) -> tuple:
-        return (self.depth1, self.width1, self.depth2, self.width2, self.depth3, self.width3)
+        return (
+            self.depth1,
+            self.width1,
+            self.depth2,
+            self.width2,
+            self.depth3,
+            self.width3,
+        )
 
     @classmethod
     def from_tuple(self, arch_tuple: tuple):
         return Arch(*arch_tuple)
-    
+
+
 class IntCodec:
     """
-        Default codec
+    Default codec
     """
+
     def __init__(self, search_space):
         self.depth1 = search_space.depth1
         self.depth2 = search_space.depth2
@@ -50,8 +60,6 @@ class IntCodec:
         self.width2_to_idx = {w: i for i, w in enumerate(search_space.width2)}
         self.width3_to_idx = {w: i for i, w in enumerate(search_space.width3)}
 
-
-
     def encode(self, arch: Arch) -> Tuple[int]:
         d1, w1, d2, w2, d3, w3 = arch.to_tuple()
         code = (
@@ -60,7 +68,7 @@ class IntCodec:
             self.depth2_to_idx[d2],
             self.width2_to_idx[w2],
             self.depth3_to_idx[d3],
-            self.width3_to_idx[w3]
+            self.width3_to_idx[w3],
         )
 
         return code
@@ -72,7 +80,7 @@ class IntCodec:
             self.depth2[code[2]],
             self.width2[code[3]],
             self.depth3[code[4]],
-            self.width3[code[5]]
+            self.width3[code[5]],
         )
         return Arch(*arch_tuple)
 
@@ -94,23 +102,35 @@ class OneHotCodec:
         self.width3_to_idx = {w: i for i, w in enumerate(search_space.width3)}
 
         self.seg_lengths = [
-            len(m) for m in 
-            [self.depth1, self.width1, self.depth2,self.width2, self.depth3, self.width3]
+            len(m)
+            for m in [
+                self.depth1,
+                self.width1,
+                self.depth2,
+                self.width2,
+                self.depth3,
+                self.width3,
+            ]
         ]
         self.code_length = sum(self.seg_lengths)
 
     def encode(self, arch: Arch) -> Tuple[int]:
-        d1, w1, d2, w2, d3, w3 = arch.to_tuple()
+        arch_tuple = arch.to_tuple()
         code = np.zeros(self.code_length, dtype=np.int32)
 
+        index_map = [
+            self.depth1_to_idx,
+            self.width1_to_idx,
+            self.depth2_to_idx,
+            self.width2_to_idx,
+            self.depth3_to_idx,
+            self.width3_to_idx,
+        ]
+
         offset = 0
-        for mi in [
-            self.depth1_to_idx, self.width1_to_idx, 
-            self.depth2_to_idx, self.width2_to_idx, 
-            self.depth3_to_idx, self.width3_to_idx]:
-            
-            code[offset+mi[d1]] = 1
-            offset += len(mi)
+        for mi, seg_len, v in zip(index_map, self.seg_lengths, arch_tuple):
+            code[offset + mi[v]] = 1
+            offset += seg_len
 
         return code
 
@@ -118,12 +138,20 @@ class OneHotCodec:
         arch_tuple = []
         offset = 0
 
-        m_arr = [self.depth1, self.width1, self.depth2,self.width2, self.depth3, self.width3]
+        m_arr = [
+            self.depth1,
+            self.width1,
+            self.depth2,
+            self.width2,
+            self.depth3,
+            self.width3,
+        ]
         for m, seg_length in zip(m_arr, self.seg_lengths):
-            seg_code = code[offset:offset+seg_length]
+            seg_code = code[offset : offset + seg_length]
             arch_tuple.append(m[np.argmax(seg_code)])
 
         return Arch(*arch_tuple)
+
 
 class WRNSearchSpace:
     depth1: Tuple[int] = (4, 5, 7, 9, 11)
@@ -147,14 +175,11 @@ class WRNSearchSpace:
             random.choice(self.depth2),
             random.choice(self.width2),
             random.choice(self.depth3),
-            random.choice(self.width3)
+            random.choice(self.width3),
         )
 
     def sample_archs(self, n) -> Arch:
-        new_archs = [
-            self.sample_arch()
-            for _ in range(n)
-        ]
+        new_archs = [self.sample_arch() for _ in range(n)]
 
         return new_archs
 
@@ -162,28 +187,40 @@ class WRNSearchSpace:
         arch_tuple = arch.to_tuple()
 
         neighbors = []
-        for i, m in enumerate([self.depth1, self.width1, self.depth2,
-                               self.width2, self.depth3, self.width3]):
+        for i, m in enumerate(
+            [
+                self.depth1,
+                self.width1,
+                self.depth2,
+                self.width2,
+                self.depth3,
+                self.width3,
+            ]
+        ):
             for choice in m:
                 if choice != arch_tuple[i]:
-                    new_arch_tuple = copy.deepcopy(arch_tuple)
+                    new_arch_tuple = list(arch_tuple)
                     new_arch_tuple[i] = choice
-                    neighbors.append(
-                        Arch(*new_arch_tuple)
-                    )
+                    neighbors.append(Arch(*new_arch_tuple))
 
         if shuffle:
             random.shuffle(neighbors)
 
         return neighbors
-    
-    def get_random_neighbor(self, arch: Arch):
-        new_arch_tuple = copy.deepcopy(arch.to_tuple())
 
-        cand_list = [self.depth1, self.width1, self.depth2,
-                               self.width2, self.depth3, self.width3]
-        i = random.randint(0, len(cand_list)-1)
-        cand = copy.deepcopy(cand_list[i])
+    def get_random_neighbor(self, arch: Arch):
+        new_arch_tuple = list(arch.to_tuple())
+
+        cand_list = [
+            self.depth1,
+            self.width1,
+            self.depth2,
+            self.width2,
+            self.depth3,
+            self.width3,
+        ]
+        i = random.randint(0, len(cand_list) - 1)
+        cand = list(cand_list[i])
         cand.remove(new_arch_tuple[i])
         new_arch_tuple[i] = random.choice(cand)
 
@@ -191,18 +228,15 @@ class WRNSearchSpace:
 
     def get_arch_iterator(self):
         """
-            Retrive the search space
+        Retrive the search space
         """
         for d1, w1, d2, w2, d3, w3 in itertools.product(
-            self.depth1, self.width1,
-            self.depth2, self.width2,
-            self.depth3, self.width3
+            self.depth1, self.width1, self.depth2, self.width2, self.depth3, self.width3
         ):
             yield Arch(d1, w1, d2, w2, d3, w3)
 
-
     # def encode(self, arch: Arch) -> Tuple[int]:
     #     return self.codec.encode(arch)
-    
+
     # def decode(self, code: Tuple[int]) -> Arch:
     #     return self.codec.decode(code)

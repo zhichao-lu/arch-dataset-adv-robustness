@@ -256,4 +256,10 @@ $RECYCLE.BIN/
 /debug/
 /data/*
 /test/
-/fig/
+/fig*/
+
+vis*.py
+
+# hydra
+outputs
+multirun

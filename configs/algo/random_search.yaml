@@ -1,0 +1,4 @@
+# @package _global_
+
+optimizer_cls: optimizer.random_search.RandomSearch
+

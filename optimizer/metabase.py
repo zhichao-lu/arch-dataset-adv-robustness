@@ -1,11 +1,21 @@
-from abc import ABCMeta
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 from search_space import Arch
 from dataset import Metric
 
+from typing import List
 
-class MetaOptimizer:
+def cmp(a, b):
+    """
+    Return:
+        -1 if a < b
+        0 if a == b
+        1 if a > b
+    """
+    return bool(a > b) - bool(a < b)
+
+
+class MetaOptimizer(ABC):
 
     def __init__(self, config, dataset):
         self.dataset = dataset
@@ -19,10 +29,14 @@ class MetaOptimizer:
         self.total_queries = config.total_queries
 
         self.sampled_archs = dict()
-        self.best_arch = None
+        self.best_archs = []  # allow multiple best archs
         self.best_arch_metric = None
 
-    def query_metric(self, arch):
+    @abstractmethod
+    def run(self)->None:
+        raise NotImplementedError
+
+    def query_metric(self, arch) -> Metric:
         if arch in self.sampled_archs:
             return self.sampled_archs[arch]
         else:
@@ -32,11 +46,17 @@ class MetaOptimizer:
 
             return metric
 
-    def compare_metric(self, old_arch_metric, new_arch_metric):
+    def compare_metric(self, old_arch_metric, new_arch_metric) -> int:
+        """
+        Retrun:
+            -1 if old_arch_metric is better than new_arch_metric
+            0 if old_arch_metric is equal to new_arch_metric
+            1 if old_arch_metric is worse than new_arch_metric (need replace)
+        """
         if self.objective_direction == "max":
-            return old_arch_metric < new_arch_metric
+            return cmp(new_arch_metric, old_arch_metric)
         elif self.objective_direction == "min":
-            return old_arch_metric > new_arch_metric
+            return cmp(old_arch_metric, new_arch_metric)
         else:
             raise ValueError("Unknown objective direction.")
 
@@ -44,14 +64,14 @@ class MetaOptimizer:
         """
         Returns the sampled architecture with the lowest validation error.
         """
-        return self.best_arch
-    
-    def get_topk_archs(self, k=5):
+        return self.best_archs
+
+    def get_topk_archs(self, k=5) -> List[Arch]:
         """
         Returns the top k architectures with the lowest validation error.
         """
         sorted_tuple_list = sorted(self.sampled_archs.items(), key=lambda x: x[1])
-        if self.objective_direction == 'max':
+        if self.objective_direction == "max":
             sorted_tuple_list = sorted_tuple_list[::-1]
 
         return [arch for arch, _ in sorted_tuple_list[:k]]

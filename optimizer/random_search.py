@@ -1,20 +1,9 @@
-from metabase import MetaOptimizer
+from .metabase import MetaOptimizer
 
 
 class RandomSearch(MetaOptimizer):
-    """
-    Random search in DARTS is done by randomly sampling `k` architectures
-    and training them for `n` epochs, then selecting the best architecture.
-    DARTS paper: `k=24` and `n=100` for cifar-10.
-    """
 
-    using_step_function = False
-
-    def __init__(
-            self,
-            config,
-            dataset
-    ):
+    def __init__(self, config, dataset):
         """
         Initialize a random search optimizer.
 
@@ -34,11 +23,14 @@ class RandomSearch(MetaOptimizer):
 
             new_arch_metric = self.query_metric(new_arch)
 
-            if self.best_arch is None:
-                self.best_arch = new_arch
+            if self.best_arch_metric is None:
+                self.best_archs.append(new_arch)
                 self.best_arch_metric = new_arch_metric
-            elif self.compare_metric(self.best_arch_metric, new_arch_metric):
-                self.best_arch = new_arch
-                self.best_arch_metric = new_arch_metric
-
+            else:
+                cmp = self.compare_metric(self.best_arch_metric, new_arch_metric)
+                if cmp == 1:
+                    self.best_archs = [new_arch]
+                    self.best_arch_metric = new_arch_metric
+                elif cmp == 0:
+                    self.best_archs.append(new_arch)
 

@@ -1,6 +1,0 @@
-total_queries: 150
-objective_metric: "val_best_pgd_acc"
-objective_metric_mode: "max"
-
-num_init: 10
-query_full_nbhd: False

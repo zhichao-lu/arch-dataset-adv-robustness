@@ -1,0 +1,6 @@
+# @package _global_
+
+optimizer_cls: optimizer.local_search.LocalSearch
+
+num_init: 10
+query_full_nbhd: False

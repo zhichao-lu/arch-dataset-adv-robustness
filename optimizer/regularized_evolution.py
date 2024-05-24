@@ -1,12 +1,14 @@
-from metabase import MetaOptimizer
+from .metabase import MetaOptimizer
 import numpy as np
 import random
 
 
 class RegularizedEvolution(MetaOptimizer):
-
+    """
+        paper: Regularized Evolution for Image Classifier Architecture Search
+    """
     def __init__(self, config, dataset):
-        super(RegularizedEvolution).__init__(config, dataset)
+        super(RegularizedEvolution, self).__init__(config, dataset)
 
         self.pop_size = config.pop_size
         self.tournament_size = config.tournament_size
@@ -47,7 +49,19 @@ class RegularizedEvolution(MetaOptimizer):
                     pop[worst_i] = child
                     pop_metric[worst_i] = child_metric
                     pop_time[worst_i] = iteration
-                    
+        
+        if self.objective_direction == "max":
+            self.best_arch_metric = max(self.sampled_archs.values())
+        elif self.objective_direction == "min":
+            self.best_arch_metric = min(self.sampled_archs.values())
+        else:
+            raise ValueError("Unknown objective direction.")
+
+        self.best_archs = [
+            arch
+            for arch, metric in self.sampled_archs.items()
+            if metric == self.best_arch_metric
+        ]
 
     def tournament_selection(self, pop_metric):
         sample_i = np.random.choice(len(pop_metric), self.tournament_size)

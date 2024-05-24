@@ -1,0 +1,22 @@
+# @package _global_
+
+optimizer_cls: optimizer.bananas.Bananas
+
+num_init: 100
+acq_opt_type: mutation
+explore_type: its
+num_candidates: 100
+num_arches_to_mutate: 10
+max_mutations: 1
+k: 10
+device: cuda
+
+predictor:
+  num_ensemble: 6
+  num_layers: 3
+  layer_width: 32
+  batch_size: 32
+  lr: 0.001
+  l1_reg: 0.2
+  epochs: 500
+  loss_type: mae

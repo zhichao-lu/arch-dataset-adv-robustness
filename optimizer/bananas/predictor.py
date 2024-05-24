@@ -7,7 +7,10 @@ from torch.utils.data import DataLoader, TensorDataset
 from collections import defaultdict
 from utils import AverageMeter
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import numpy as np
+
 
 class FeedforwardNet(nn.Module):
     def __init__(
@@ -50,7 +53,8 @@ class FeedforwardNet(nn.Module):
             x = self.activation(layer(x))
         return x
 
-class MLPPredictor():
+
+class MLPPredictor:
     def __init__(self, cfg, device=torch.device("cpu")):
 
         self.num_layers = cfg.num_layers
@@ -64,18 +68,14 @@ class MLPPredictor():
         self.model = None
         self.device = device
 
-
     def get_model(self, **kwargs):
         predictor = FeedforwardNet(**kwargs)
         return predictor
 
     def fit(self, xtrain, ytrain, verbose=False):
 
-
         # self.mean = np.mean(ytrain)
         # self.std = np.std(ytrain)
-
-
 
         train_data = TensorDataset(xtrain, ytrain)
         data_loader = DataLoader(
@@ -89,7 +89,7 @@ class MLPPredictor():
         self.model = self.get_model(
             input_dims=xtrain.shape[1],
             num_layers=self.num_layers,
-            layer_width=[self.layer_width]*self.num_layers,
+            layer_width=[self.layer_width] * self.num_layers,
         )
         self.model.to(self.device)
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr, betas=(0.9, 0.99))
@@ -103,7 +103,7 @@ class MLPPredictor():
 
         for e in range(self.epochs):
             meters = defaultdict(AverageMeter)
-            for input,target in data_loader:
+            for input, target in data_loader:
                 input = input.to(self.device)
                 target = target.to(self.device)
 
@@ -119,7 +119,7 @@ class MLPPredictor():
                         if x[0] == "out.weight"
                     ]
                 )
-                loss_fn += self.l1_ref * torch.norm(params, 1)
+                loss_fn += self.l1_reg * torch.norm(params, 1)
                 loss_fn.backward()
                 optimizer.step()
 
@@ -132,7 +132,7 @@ class MLPPredictor():
                 print("Epoch {}, {}, {}".format(e, meters["loss"], meters["mse"]))
 
         train_pred = self.query(xtrain)
-        train_error = np.mean(np.abs(train_pred - ytrain))
+        train_error = torch.mean(torch.abs(train_pred - ytrain))
         return train_error
 
     def query(self, xtest, eval_batch_size=None):
@@ -152,35 +152,67 @@ class MLPPredictor():
                 prediction = self.model(input)
                 pred.append(prediction)
 
-        return torch.cat(pred).cpu().numpy()
-
+        return torch.cat(pred)
 
 
 def accuracy_mse(prediction, target, scale=100.0):
     return F.mse_loss(prediction, target) * scale
 
 
-
 class Ensemble:
-    def __init__(self, cfg):
+    def __init__(self, cfg, device=torch.device("cpu")):
         self.num_ensemble = cfg.num_ensemble
         self.cfg = cfg
 
-        self.ensamble = [None] * self.num_ensemble
-    
+        self.device = device
 
-    def fit(self, xtrain, ytrain, verbose=False):
+        self.ensamble = [None] * self.num_ensemble
+
+    def fit(self, xtrain, ytrain, verbose=True):
+        xtrain = torch.from_numpy(xtrain).to(self.device, dtype=torch.float32)
+        ytrain = torch.from_numpy(ytrain).to(self.device, dtype=torch.float32)
+
         train_errors = []
         for i in range(self.num_ensemble):
-            self.ensamble[i] = MLPPredictor(self.cfg)
-            train_error = self.ensamble[i].fit(xtrain, ytrain, verbose=verbose)
-            train_errors.append(train_error)
+            self.ensamble[i] = MLPPredictor(self.cfg, self.device)
+            train_errors.append(
+                self.ensamble[i]
+                .fit(xtrain, ytrain, verbose=verbose)
+                .detach()
+                .cpu()
+                .numpy()
+            )
+
+        # with ThreadPoolExecutor(max_workers=self.num_ensemble) as thread_pool:
+        #     tasks = []
+        #     for i in range(self.num_ensemble):
+        #         self.ensamble[i] = MLPPredictor(self.cfg, self.device)
+        #         tasks.append(
+        #             thread_pool.submit(self.ensamble[i].fit, xtrain, ytrain, verbose=verbose)
+        #         )
+
+        #         # train_errors.append(
+        #         #     self.ensamble[i]
+        #         #     .fit(xtrain, ytrain, verbose=verbose)
+        #         #     .detach()
+        #         #     .cpu()
+        #         #     .numpy()
+        #         # )
+        #     for future in as_completed(tasks):
+        #         train_errors.append(future.result().detach().cpu().numpy())
 
         return train_errors
-    
+
     def query(self, xtest, eval_batch_size=None):
+        xtest = torch.from_numpy(xtest).to(self.device, dtype=torch.float32)
+
         predictions = []
         for i in range(self.num_ensemble):
-            predictions.append(self.ensamble[i].query(xtest, eval_batch_size=eval_batch_size))
+            predictions.append(
+                self.ensamble[i]
+                .query(xtest, eval_batch_size=eval_batch_size)
+                .detach()
+                .cpu()
+                .numpy()
+            )
         return predictions
-            

@@ -5,6 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "NAS Benchmark",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "nas_benchmark.py",
+            "console": "integratedTerminal",
+            // "args": "${command:pickArgs}"
+            "args": [
+                "algo=random_search"
+            ]
+        },
+        {
             "name": "Generate Data",
             "type": "debugpy",
             "request": "launch",
@@ -16,7 +27,7 @@
                 "--model-path",
                 "~/gitRepo/attack/RobustNASBench-official/ablation_dir/nasbench",
                 "--save-path",
-                "../data/cifar10_retrain.jsonl"
+                "../data/cifar10.jsonl"
             ]
         }
     ]

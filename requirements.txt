@@ -1,3 +1,5 @@
+orjson
 orjsonl
-# glom
 hydra-core
+torch
+# torchvision
