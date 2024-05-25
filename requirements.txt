@@ -1,5 +1,6 @@
 orjson
 orjsonl
 hydra-core
+numpy
 torch
 # torchvision
