@@ -2,18 +2,19 @@
 
 optimizer_cls: optimizer.bananas.Bananas
 
-num_init: 100
+num_init: 10
 acq_opt_type: mutation
 explore_type: its
 num_candidates: 100
 num_arches_to_mutate: 10
-max_mutations: 1
+mutations: 1
+patience_factor: 5
 k: 10
 device: cuda
 
 predictor:
-  num_ensemble: 6
-  num_layers: 3
+  num_ensemble: 5
+  num_layers: 20
   layer_width: 32
   batch_size: 32
   lr: 0.001

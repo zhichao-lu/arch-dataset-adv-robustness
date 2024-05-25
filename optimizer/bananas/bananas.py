@@ -1,13 +1,8 @@
-
-
-
-
-
-from ..metabase import MetaOptimizer
 import numpy as np
 import torch
 
 from search_space import OneHotCodec
+from ..metabase import MetaOptimizer
 from .predictor import Ensemble
 from .acq_fn import acq_fn
 
@@ -30,7 +25,8 @@ class Bananas(MetaOptimizer):
 
         self.num_candidates = config.num_candidates
         self.num_arches_to_mutate = config.num_arches_to_mutate
-        self.max_mutations = config.max_mutations
+        self.mutations = config.mutations  # max number of muatations for a parent
+        self.patience_factor = config.patience_factor
 
         if not torch.cuda.is_available():
             config.device = "cpu"
@@ -41,10 +37,11 @@ class Bananas(MetaOptimizer):
 
         self.predictor_cfg = config.predictor
 
-        if self.acq_opt_type not in ["mutation", "mutation_random", "random"]:
-            raise NotImplementedError(
-                f"{self.acq_opt_type} is not yet implemented as an acquisition type"
-            )
+        assert self.acq_opt_type in ["mutation", "mutation_random",
+                                     "random"], f"{self.acq_opt_type} is not yet implemented as an acquisition type"
+
+        assert "acc" in config.objective_metric.lower(
+        ), "Only Acc metrics are supported in BANANAS, eg: VAL_PGD_ACC"
 
     def run(self):
         """
@@ -60,7 +57,8 @@ class Bananas(MetaOptimizer):
             ytrain = []
             for arch, metric in self.sampled_archs.items():
                 xtrain.append(self.codec.encode(arch))
-                ytrain.append(metric)
+                # Note: here we need val_error, which is 1-val_acc
+                ytrain.append(100-metric)
 
             xtrain = np.stack(xtrain, axis=0)
             ytrain = np.array(ytrain)
@@ -68,34 +66,52 @@ class Bananas(MetaOptimizer):
             predictor = Ensemble(self.predictor_cfg, self.device)
             predictor.fit(xtrain, ytrain)
 
-            xcandidates = [self.codec.encode(arch) for arch in self.get_candidates()]
+            candidate_archs = self.get_candidates()
+            xcandidates = [self.codec.encode(arch)
+                           for arch in candidate_archs]
             xcandidates = np.stack(xcandidates, dtype=np.float32)
 
             candidate_predictions = predictor.query(xcandidates)
-            candidate_indices = acq_fn(
+            acq_val = acq_fn(
                 candidate_predictions, ytrain=ytrain, explore_type=self.explore_type
             )
+            candidate_indices = np.argsort(acq_val)
 
             new_cnt = 0
-            for i in candidate_indices[: self.k]:
+            for i in candidate_indices[:self.k]:
                 arch = self.codec.decode(xcandidates[i])
-                self.query_metric(arch)
-
                 if arch not in self.sampled_archs:
                     new_cnt += 1
-            
+
+                self.query_metric(arch)
+
             print(f"Queries: {self.queries}, new: {new_cnt}")
+
+        if self.objective_direction == "max":
+            self.best_arch_metric = max(self.sampled_archs.values())
+        elif self.objective_direction == "min":
+            self.best_arch_metric = min(self.sampled_archs.values())
+        else:
+            raise ValueError("Unknown objective direction.")
+
+        self.best_archs = [
+            arch
+            for arch, metric in self.sampled_archs.items()
+            if metric == self.best_arch_metric
+        ]
 
     def get_candidates(self):
         """
         Creates a set of candidate architectures with mutated and/or random architectures
+        Note: when acq_opt_type = random or mutation_random, generate (2 * self.num_candidates) candidates, following the impl of original BANANAS
         """
 
         candidates = []
 
         if self.acq_opt_type in ["mutation", "mutation_random"]:
-            # mutate architectures with the lowest loss
-            best_arches = self.get_topk_archs(k=self.num_arches_to_mutate)
+            # mutate architectures with the lowest loss (i.e., highest acc)
+            best_arches = self.get_topk_archs(
+                k=self.num_arches_to_mutate*self.patience_factor)
 
             # stop when candidates is size num
 
@@ -106,21 +122,23 @@ class Bananas(MetaOptimizer):
                     int(
                         self.num_candidates
                         / self.num_arches_to_mutate
-                        / self.max_mutations
+                        / self.mutations
                     )
                 ):
-                    for j in range(self.max_mutations):
-                        arch = self.mutate(arch)
+                    for j in range(self.mutations):
+                        new_arch = self.mutate(arch)
 
-                        if arch not in self.sampled_archs:
-                            candidates.append(arch)
+                        if new_arch not in self.sampled_archs:
+                            candidates.append(new_arch)
 
         if self.acq_opt_type in ["random", "mutation_random"]:
             # add randomly sampled architectures to the set of candidates
-            for i in range():
-                arch = self.search_space.sample_arch()
-                if arch not in self.sampled_archs:
-                    candidates.append(arch)
+            for i in range(self.num_candidates * self.patience_factor):
+                if len(candidates) >= 2 * self.num_candidates:
+                    break
+                new_arch = self.search_space.sample_arch()
+                if new_arch not in self.sampled_archs:
+                    candidates.append(new_arch)
 
         return candidates
 

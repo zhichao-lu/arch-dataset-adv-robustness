@@ -7,7 +7,6 @@ def acq_fn(predictions, ytrain=None, stds=None, explore_type='its'):
     predictions = np.array(predictions)
 
     if stds is None:
-        # stds = np.sqrt(np.var(predictions, axis=0))
         stds = np.std(predictions, axis=0)
 
     # Upper confidence bound (UCB) acquisition function
@@ -15,7 +14,8 @@ def acq_fn(predictions, ytrain=None, stds=None, explore_type='its'):
         explore_factor = 0.5
         mean = np.mean(predictions, axis=0)
         ucb = mean - explore_factor * stds
-        sorted_indices = np.argsort(ucb)
+        # sorted_indices = np.argsort(ucb)
+        return ucb
 
     # Expected improvement (EI) acquisition function
     elif explore_type == 'ei':
@@ -26,7 +26,8 @@ def acq_fn(predictions, ytrain=None, stds=None, explore_type='its'):
         gam = [(min_y - mean[i]) / factored_stds[i] for i in range(len(mean))]
         ei = [-1 * factored_stds[i] * (gam[i] * norm.cdf(gam[i]) + norm.pdf(gam[i]))
               for i in range(len(mean))]
-        sorted_indices = np.argsort(ei)
+        # sorted_indices = np.argsort(ei)
+        return ei
 
     # Probability of improvement (PI) acquisition function
     elif explore_type == 'pi':
@@ -34,38 +35,41 @@ def acq_fn(predictions, ytrain=None, stds=None, explore_type='its'):
         stds = list(stds)
         min_y = ytrain.min()
         pi = [-1 * norm.cdf(min_y, loc=mean[i], scale=stds[i]) for i in range(len(mean))]
-        sorted_indices = np.argsort(pi)
+        # sorted_indices = np.argsort(pi)
+        return pi
 
     # Thompson sampling (TS) acquisition function
     elif explore_type == 'ts':
         rand_ind = np.random.randint(predictions.shape[0])
         ts = predictions[rand_ind,:]
-        sorted_indices = np.argsort(ts)
+        # sorted_indices = np.argsort(ts)
+        return ts
 
     # Top exploitation 
     elif explore_type == 'percentile':
         min_prediction = np.min(predictions, axis=0)
-        sorted_indices = np.argsort(min_prediction)
+        # sorted_indices = np.argsort(min_prediction)
+        return min_prediction
 
     # Top mean
     elif explore_type == 'mean':
         mean = np.mean(predictions, axis=0)
-        sorted_indices = np.argsort(mean)
+        # sorted_indices = np.argsort(mean)
+        return mean
 
     elif explore_type == 'confidence':
         confidence_factor = 2
         mean = np.mean(predictions, axis=0)
         conf = mean + confidence_factor * stds
-        sorted_indices = np.argsort(conf)
+        # sorted_indices = np.argsort(conf)
+        return conf
 
     # Independent Thompson sampling (ITS) acquisition function
     elif explore_type == 'its':
         mean = np.mean(predictions, axis=0)
         samples = np.random.normal(mean, stds)
-        sorted_indices = np.argsort(samples)
-
+        # sorted_indices = np.argsort(samples)
+        return samples
     else:
         print('{} is not a valid exploration type'.format(explore_type))
         raise NotImplementedError()
-
-    return sorted_indices

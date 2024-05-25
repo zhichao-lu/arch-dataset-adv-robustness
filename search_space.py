@@ -136,7 +136,7 @@ class OneHotCodec:
 
     def decode(self, code: Tuple[int]) -> Arch:
         arch_tuple = []
-        offset = 0
+        
 
         m_arr = [
             self.depth1,
@@ -146,9 +146,11 @@ class OneHotCodec:
             self.depth3,
             self.width3,
         ]
+        offset = 0
         for m, seg_length in zip(m_arr, self.seg_lengths):
             seg_code = code[offset : offset + seg_length]
             arch_tuple.append(m[np.argmax(seg_code)])
+            offset += seg_length
 
         return Arch(*arch_tuple)
 
