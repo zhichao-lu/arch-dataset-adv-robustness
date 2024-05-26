@@ -8,7 +8,6 @@ from collections import defaultdict
 from utils import AverageMeter
 
 # from concurrent.futures import ThreadPoolExecutor, as_completed
-
 # import numpy as np
 
 
@@ -77,16 +76,7 @@ class MLPPredictor:
         # self.mean = np.mean(ytrain)
         # self.std = np.std(ytrain)
 
-        train_data = TensorDataset(xtrain, ytrain)
-        data_loader = DataLoader(
-            train_data,
-            batch_size=self.batch_size,
-            shuffle=True,
-            drop_last=False,
-            pin_memory=False
-        )
-
-        y_lb = ytrain.min()
+        y_lb = ytrain.min(axis=0)
 
         self.model = self.get_model(
             input_dims=xtrain.shape[1],
@@ -101,14 +91,15 @@ class MLPPredictor:
 
         for e in range(self.epochs):
             meters = defaultdict(AverageMeter)
-            for input, target in data_loader:
-                # input = input.to(self.device)
-                # target = target.to(self.device)
 
+            shuffle_idx = torch.randperm(xtrain.shape[0])
+            batch_xtrain = torch.split(xtrain[shuffle_idx].contiguous(), self.batch_size)
+            batch_ytrain = torch.split(ytrain[shuffle_idx].contiguous(), self.batch_size)
+
+            for input, target in zip(batch_xtrain, batch_ytrain):
                 optimizer.zero_grad()
                 prediction = self.model(input)
 
-                # loss = criterion(prediction, target)
                 if self.loss_type == "mse":
                     loss = F.mse_loss(prediction, target)
                 elif self.loss_type == "mae":
@@ -144,19 +135,14 @@ class MLPPredictor:
         return train_error
 
     def query(self, xtest, eval_batch_size=None):
-        test_data = TensorDataset(xtest)
         eval_batch_size = xtest.shape[0] if eval_batch_size is None else eval_batch_size
 
-        test_data_loader = DataLoader(
-            test_data, batch_size=eval_batch_size, pin_memory=False
-        )
-
+        batch_xtest = torch.split(xtest.contiguous(), eval_batch_size)
         self.model.eval()
         pred = []
         with torch.no_grad():
-            for batch in test_data_loader:
-                x = batch[0].to(self.device)
-                prediction = self.model(x)
+            for input in batch_xtest:
+                prediction = self.model(input)
                 pred.append(prediction)
 
         return torch.cat(pred)
