@@ -83,8 +83,7 @@ class MLPPredictor:
             batch_size=self.batch_size,
             shuffle=True,
             drop_last=False,
-            pin_memory=False,
-            num_workers=1
+            pin_memory=False
         )
 
         y_lb = ytrain.min()
