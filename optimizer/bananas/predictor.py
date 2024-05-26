@@ -84,6 +84,7 @@ class MLPPredictor:
             shuffle=True,
             drop_last=False,
             pin_memory=False,
+            num_workers=1
         )
 
         y_lb = ytrain.min()
@@ -96,14 +97,14 @@ class MLPPredictor:
         self.model.to(self.device)
         optimizer = optim.Adam(self.model.parameters(),
                                lr=self.lr, betas=(0.9, 0.99))
-        
+
         self.model.train()
 
         for e in range(self.epochs):
             meters = defaultdict(AverageMeter)
             for input, target in data_loader:
-                input = input.to(self.device)
-                target = target.to(self.device)
+                # input = input.to(self.device)
+                # target = target.to(self.device)
 
                 optimizer.zero_grad()
                 prediction = self.model(input)
@@ -116,7 +117,8 @@ class MLPPredictor:
                 elif self.loss_type == 'mape':
                     loss = mape_loss(prediction, target, y_lb)
                 else:
-                    raise ValueError(f'Loss Type "{self.loss_type}" is not supported')
+                    raise ValueError(
+                        f'Loss Type "{self.loss_type}" is not supported')
 
                 # add L1 regularization on output layer
                 params = torch.cat(
