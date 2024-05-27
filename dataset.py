@@ -83,43 +83,50 @@ class TrainHistory:
 
 
 @dataclass
-class CorruptAcc:
-    gaussian_noise: float
-    shot_noise: float
-    impulse_noise: float
-    defocus_blur: float
-    glass_blur: float
-    motion_blur: float
-    zoom_blur: float
-    snow: float
-    frost: float
-    fog: float
-    brightness: float
-    contrast: float
-    elastic_transform: float
-    pixelate: float
-    jpeg_compression: float
-    total_avg: float
+class CorruptionEntry:
+    acc: float
+    loss: float
 
 
 @dataclass
-class AttackAcc:
-    Linf_fgsm_acc: float = field(default=None)
-    Linf_fgsm_stable: float = field(default=None)
-    Linf_pgd_acc: float = field(default=None)
-    Linf_pgd_stable: float = field(default=None)
-    Linf_pgd_lip: float = field(default=None)
-    Linf_cw_acc: float = field(default=None)
-    Linf_cw_stable: float = field(default=None)
-    Linf_cw_lip: float = field(default=None)
-    Linf_aa_acc: float = field(default=None)  # AutoAttack
+class CorruptionData:
+    # TDDO: add more corruption types with 5 levels
+    gaussian_noise: CorruptionEntry
+    shot_noise: CorruptionEntry
+    impulse_noise: CorruptionEntry
+    defocus_blur: CorruptionEntry
+    glass_blur: CorruptionEntry
+    motion_blur: CorruptionEntry
+    zoom_blur: CorruptionEntry
+    snow: CorruptionEntry
+    frost: CorruptionEntry
+    fog: CorruptionEntry
+    brightness: CorruptionEntry
+    contrast: CorruptionEntry
+    elastic_transform: CorruptionEntry
+    pixelate: CorruptionEntry
+    jpeg_compression: CorruptionEntry
+    total_avg: CorruptionEntry
+
+
+@dataclass
+class AttackData:
+    Linf_fgsm_acc: float
+    Linf_fgsm_stable: float
+    Linf_pgd_acc: float
+    Linf_pgd_stable: float
+    Linf_pgd_lip: float
+    Linf_cw_acc: float
+    Linf_cw_stable: float
+    Linf_cw_lip: float
+    Linf_aa_acc: float  # AutoAttack
 
     # Not supported yet
-    # L2_pgd_acc: float = field(default=None)
-    # L2_pgd_stable: float = field(default=None)
-    # L2_pgd_stable: float = field(default=None)
-    # L2_cw_acc: float = field(default=None)
-    # L2_aa_acc: float = field(default=None)
+    # L2_pgd_acc: float
+    # L2_pgd_stable: float
+    # L2_pgd_stable: float
+    # L2_cw_acc: float
+    # L2_aa_acc: float
 
 
 @dataclass
@@ -140,8 +147,9 @@ class TrainRecord:
     test_clean_acc: float
     test_loss: float
 
-    attack_acc: List[AttackAcc]  # allow multiple attack runs due to randomness
-    corruption_acc: CorruptAcc  # one corruption acc for each model (no randomness)
+    attack: List[AttackData]  # allow multiple attack runs due to randomness
+    # one corruption acc for each model (no randomness)
+    corruption: CorruptionData
 
     # Not supported yet
     # last_model_attack_acc: AttackAcc = field(default=None)
@@ -189,7 +197,8 @@ class NASBenchR_CIFAR10_Dataset:
             )
 
             assert (
-                len(raw_record["train"]) == 1 and len(raw_record["test_best"]) == 1
+                len(raw_record["train"]) == 1 and len(
+                    raw_record["test_best"]) == 1
             ), f"arch_{raw_record['arch_id']}"
 
             train_records = []
@@ -198,13 +207,17 @@ class NASBenchR_CIFAR10_Dataset:
             ):
                 assert _test_best_record is not None
 
-                corrupt_acc_dict = _test_best_record.get("corruptions", {})
-                assert len(corrupt_acc_dict) > 0
-
-                corrupt_acc_dict["total_avg"] = np.mean(
-                    [v["acc"] for v in _test_best_record["corruptions"].values()]
-                )
-                corruption = CorruptAcc(**corrupt_acc_dict)
+                _corruption_record = _test_best_record.get("corruptions", {})
+                assert len(_corruption_record) > 0
+                corrupt_acc_dict = {
+                    k: CorruptionEntry(acc=v["acc"], loss=v["loss"])
+                    for k,v in _corruption_record.items()
+                }
+                corrupt_acc_dict["total_avg"] = CorruptionEntry(
+                    acc=np.mean([v["acc"] for v in _corruption_record.values()]),
+                    loss=np.mean([v["loss"] for v in _corruption_record.values()]))
+                
+                corruption = CorruptionData(**corrupt_acc_dict)
 
                 train_records.append(
                     TrainRecord(
@@ -227,10 +240,11 @@ class NASBenchR_CIFAR10_Dataset:
                             val_cw_stable=_train_record["cw_stable"],
                             val_cw_lip=_train_record["cw_lip"],
                         ),
-                        test_clean_acc=_test_best_record.get("test_clean_acc", None),
+                        test_clean_acc=_test_best_record.get(
+                            "test_clean_acc", None),
                         test_loss=_test_best_record.get("test_loss", None),
-                        attack_acc=[
-                            AttackAcc(
+                        attack=[
+                            AttackData(
                                 Linf_fgsm_acc=_test_best_record.get(
                                     "Linf_fgsm_acc", None
                                 ),
@@ -246,15 +260,18 @@ class NASBenchR_CIFAR10_Dataset:
                                 Linf_pgd_lip=_test_best_record.get(
                                     "Linf_pgd_lip", None
                                 ),
-                                Linf_cw_acc=_test_best_record.get("Linf_cw_acc", None),
+                                Linf_cw_acc=_test_best_record.get(
+                                    "Linf_cw_acc", None),
                                 Linf_cw_stable=_test_best_record.get(
                                     "Linf_cw_stable", None
                                 ),
-                                Linf_cw_lip=_test_best_record.get("Linf_cw_lip", None),
-                                Linf_aa_acc=_test_best_record.get("Linf_aa_acc", None),
+                                Linf_cw_lip=_test_best_record.get(
+                                    "Linf_cw_lip", None),
+                                Linf_aa_acc=_test_best_record.get(
+                                    "Linf_aa_acc", None),
                             )
                         ],
-                        corruption_acc=corruption,
+                        corruption=corruption,
                     )
                 )
 
@@ -338,68 +355,68 @@ class NASBenchR_CIFAR10_Dataset:
             test_fgsm_acc = [
                 attack_acc.Linf_fgsm_acc
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_fgsm_acc)
         elif metric == Metric.TEST_FGSM_STABLE:
             test_fgsm_stable = [
                 attack_acc.Linf_fgsm_stable
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_fgsm_stable)
         elif metric == Metric.TEST_PGD_ACC:
             test_pgd_acc = [
                 attack_acc.Linf_pgd_acc
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_pgd_acc)
         elif metric == Metric.TEST_PGD_STABLE:
             test_pgd_stable = [
                 attack_acc.Linf_pgd_stable
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_pgd_stable)
         elif metric == Metric.TEST_PGD_LIP:
             test_pgd_lip = [
                 attack_acc.Linf_pgd_lip
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_pgd_lip)
         elif metric == Metric.TEST_CW_ACC:
             test_cw_acc = [
                 attack_acc.Linf_cw_acc
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_cw_acc)
         elif metric == Metric.TEST_CW_STABLE:
             test_cw_stable = [
                 attack_acc.Linf_cw_stable
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_cw_stable)
         elif metric == Metric.TEST_CW_LIP:
             test_cw_lip = [
                 attack_acc.Linf_cw_lip
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_cw_lip)
         elif metric == Metric.TEST_AA_ACC:
             test_aa_acc = [
                 attack_acc.Linf_aa_acc
                 for train_record in record.train_records
-                for attack_acc in train_record.attack_acc
+                for attack_acc in train_record.attack
             ]
             return np.mean(test_aa_acc)
         elif metric == Metric.TEST_CORRUPT_ACC:
             test_corruption = [
-                train_record.corruption_acc.total_avg
+                train_record.corruption.total_avg['acc']
                 for train_record in record.train_records
             ]
             return np.mean(test_corruption)
@@ -412,6 +429,7 @@ class NASBenchR_CIFAR10_Dataset:
 
         record = self.query(arch)
         if metric in self.test_metrics:
-            raise ValueError(f"Metric {metric} is only available at test stage")
+            raise ValueError(
+                f"Metric {metric} is only available at test stage")
 
         return self.get_metric(record, metric)
