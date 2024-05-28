@@ -87,7 +87,7 @@ def main(cfg: DictConfig) -> None:
 
     output_path = get_output_dir()
     with (output_path/"results.json").open("w") as f:
-        json.dump(records, f, cls=EnhancedJSONEncoder)
+        json.dump(records, f, cls=EnhancedJSONEncoder, indent=4)
 
 
 if __name__ == "__main__":
