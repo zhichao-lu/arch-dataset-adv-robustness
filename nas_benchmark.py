@@ -14,7 +14,9 @@ from pathlib import Path
 from hydra.core.hydra_config import HydraConfig
 
 import logging
-
+import json
+import dataclasses
+import datetime
 import pickle
 
 
@@ -49,6 +51,24 @@ def print_record(record):
     )
 
 
+class EnhancedJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if dataclasses.is_dataclass(o):
+            return self._dataclass_to_dict(o)
+        elif isinstance(o, datetime.date):
+            return o.isoformat()
+
+        return super().default(o)
+
+    def _dataclass_to_dict(self, o):
+        new_dict = {}
+        for k, v in dataclasses.asdict(o).items():
+            if dataclasses.is_dataclass(v):
+                new_dict[k] = self._dataclass_to_dict(v)
+            else:
+                new_dict[k] = v
+        return new_dict
+
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig) -> None:
     print(OmegaConf.to_yaml(cfg))
@@ -66,8 +86,8 @@ def main(cfg: DictConfig) -> None:
         print_record(record)
 
     output_path = get_output_dir()
-    with (output_path/"results.pkl").open("wb") as f:
-        pickle.dump(records, f)
+    with (output_path/"results.json").open("w") as f:
+        json.dump(records, f, cls=EnhancedJSONEncoder)
 
 
 if __name__ == "__main__":
