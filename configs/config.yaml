@@ -2,7 +2,7 @@ defaults:
   - algo: null
   - _self_
 
-
+save_topk: 5
 total_queries: 500
 objective_metric: "VAL_PGD_ACC"
 objective_direction: max

@@ -259,7 +259,8 @@ $RECYCLE.BIN/
 /fig*/
 
 vis*.py
-vis_nas/
+vis_nas_olddata/
+example.py
 
 # hydra
 outputs

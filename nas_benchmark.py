@@ -33,7 +33,7 @@ def search(optimizer_cls, dataset, cfg):
     optimizer.run()
 
     # best_arch_list = optimizer.get_final_arch()
-    top_arch_list = optimizer.get_topk_archs(5)
+    top_arch_list = optimizer.get_topk_archs(cfg.save_topk)
     records = list(dataset.batch_query(top_arch_list))
     return records
 
@@ -51,23 +51,23 @@ def print_record(record):
     )
 
 
-class EnhancedJSONEncoder(json.JSONEncoder):
-    def default(self, o):
-        if dataclasses.is_dataclass(o):
-            return self._dataclass_to_dict(o)
-        elif isinstance(o, datetime.date):
-            return o.isoformat()
+# class EnhancedJSONEncoder(json.JSONEncoder):
+#     def default(self, o):
+#         if dataclasses.is_dataclass(o):
+#             return self._dataclass_to_dict(o)
+#         elif isinstance(o, datetime.date):
+#             return o.isoformat()
 
-        return super().default(o)
+#         return super().default(o)
 
-    def _dataclass_to_dict(self, o):
-        new_dict = {}
-        for k, v in dataclasses.asdict(o).items():
-            if dataclasses.is_dataclass(v):
-                new_dict[k] = self._dataclass_to_dict(v)
-            else:
-                new_dict[k] = v
-        return new_dict
+#     def _dataclass_to_dict(self, o):
+#         new_dict = {}
+#         for k, v in dataclasses.asdict(o).items():
+#             if dataclasses.is_dataclass(v):
+#                 new_dict[k] = self._dataclass_to_dict(v)
+#             else:
+#                 new_dict[k] = v
+#         return new_dict
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig) -> None:
@@ -82,12 +82,15 @@ def main(cfg: DictConfig) -> None:
 
     records = search(optimizer_cls, dataset, cfg)
 
+    best_archs = [dict(arch_id=record.arch_id, arch=record.arch.to_tuple())
+                  for record in records]
+
     for record in records:
         print_record(record)
 
     output_path = get_output_dir()
     with (output_path/"results.json").open("w") as f:
-        json.dump(records, f, cls=EnhancedJSONEncoder, indent=4)
+        json.dump(best_archs, f, indent=4)
 
 
 if __name__ == "__main__":

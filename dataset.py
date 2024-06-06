@@ -84,8 +84,8 @@ class TrainHistory:
 
 @dataclass
 class CorruptionEntry:
-    acc: float
-    loss: float
+    acc: List[float]  # level 1 to 5
+    loss: List[float]
 
 
 @dataclass
@@ -94,18 +94,26 @@ class CorruptionData:
     gaussian_noise: CorruptionEntry
     shot_noise: CorruptionEntry
     impulse_noise: CorruptionEntry
+    speckle_noise: CorruptionEntry
+
     defocus_blur: CorruptionEntry
     glass_blur: CorruptionEntry
+    gaussian_blur: CorruptionEntry
     motion_blur: CorruptionEntry
     zoom_blur: CorruptionEntry
+
     snow: CorruptionEntry
     frost: CorruptionEntry
     fog: CorruptionEntry
     brightness: CorruptionEntry
+    spatter: CorruptionEntry
+
     contrast: CorruptionEntry
     elastic_transform: CorruptionEntry
     pixelate: CorruptionEntry
     jpeg_compression: CorruptionEntry
+    saturate: CorruptionEntry
+
     total_avg: CorruptionEntry
 
 
@@ -208,16 +216,27 @@ class NASBenchR_CIFAR10_Dataset:
                 assert _test_best_record is not None
 
                 _corruption_record = _test_best_record.get("corruptions", {})
-                assert len(_corruption_record) > 0
-                corrupt_acc_dict = {
-                    k: CorruptionEntry(acc=v["acc"], loss=v["loss"])
-                    for k,v in _corruption_record.items()
-                }
-                corrupt_acc_dict["total_avg"] = CorruptionEntry(
-                    acc=np.mean([v["acc"] for v in _corruption_record.values()]),
-                    loss=np.mean([v["loss"] for v in _corruption_record.values()]))
-                
-                corruption = CorruptionData(**corrupt_acc_dict)
+                # assert len(_corruption_record) > 0
+                if len(_corruption_record) > 0:
+
+                    corrupt_acc_dict = {}
+                    levels = [str(i) for i in range(1, 6)]
+                    for k, v in _corruption_record.items():
+                        acc = [v[l]["acc"] for l in levels]
+                        loss = [v[l]["loss"] for l in levels]
+                        corrupt_acc_dict[k] = CorruptionEntry(
+                            acc=acc, loss=loss)
+
+                    corrupt_acc_dict["total_avg"] = CorruptionEntry(
+                        acc=np.array(
+                            [v.acc for v in corrupt_acc_dict.values()]).mean(axis=0).tolist(),
+                        loss=np.array(
+                            [v.loss for v in corrupt_acc_dict.values()]).mean(axis=0).tolist(),
+                    )
+
+                    corruption = CorruptionData(**corrupt_acc_dict)
+                else:
+                    corruption = None
 
                 train_records.append(
                     TrainRecord(
@@ -416,7 +435,7 @@ class NASBenchR_CIFAR10_Dataset:
             return np.mean(test_aa_acc)
         elif metric == Metric.TEST_CORRUPT_ACC:
             test_corruption = [
-                train_record.corruption.total_avg['acc']
+                np.mean(train_record.corruption.total_avg['acc'])
                 for train_record in record.train_records
             ]
             return np.mean(test_corruption)
