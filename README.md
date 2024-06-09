@@ -1,4 +1,13 @@
-# NAS-Bench-R
+# 🐽 NARes: A Neural Architecture Dataset for Adversarial Robustness
+
+## Search Space Overview
+
+![](./nares_search_space.png "NARes Search Space")
+
+Note:
+* Decision Vector: $[D_1, W_1, D_2, W_2, D_3, W_3]$, where $D_{i\in\{1,2,3\}} \in \{4,5,7,9,11\}$ and $W_{i\in\{1,2,3\}} \in \{8,10,12,14,16\}$.
+* Total Architectures: $5^6=15625$.
+* Each architecture has an arch_id for identification, set from 1 to 15625 by the ascending order of \#MACs.
 
 ## Preparation
 
