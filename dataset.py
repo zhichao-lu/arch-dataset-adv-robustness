@@ -77,9 +77,11 @@ class TrainHistory:
     val_pgd_acc: List[float]
     val_pgd_stable: List[float]
     val_pgd_lip: List[float]
+    val_pgd_loss: List[float]
     val_cw_acc: List[float]
     val_cw_stable: List[float]
     val_cw_lip: List[float]
+    val_cw_loss: List[float]
 
 
 @dataclass
@@ -255,9 +257,11 @@ class NASBenchR_CIFAR10_Dataset:
                             val_pgd_acc=_train_record["pgd"],
                             val_pgd_stable=_train_record["pgd_stable"],
                             val_pgd_lip=_train_record["pgd_lip"],
+                            val_pgd_loss=_train_record["pgd_loss"],
                             val_cw_acc=_train_record["cw"],
                             val_cw_stable=_train_record["cw_stable"],
                             val_cw_lip=_train_record["cw_lip"],
+                            val_cw_loss=_train_record["cw_loss"],
                         ),
                         test_clean_acc=_test_best_record.get(
                             "test_clean_acc", None),
