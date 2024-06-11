@@ -1,4 +1,4 @@
-# 🐽 NARes: A Neural Architecture Dataset for Adversarial Robustness
+# 🐽 NARes: A Neural Architecture Dataset for Adversarial Robustness on WideResNet
 
 ## Search Space Overview
 

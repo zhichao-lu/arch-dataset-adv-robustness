@@ -439,7 +439,7 @@ class NASBenchR_CIFAR10_Dataset:
             return np.mean(test_aa_acc)
         elif metric == Metric.TEST_CORRUPT_ACC:
             test_corruption = [
-                np.mean(train_record.corruption.total_avg['acc'])
+                np.mean(train_record.corruption.total_avg.acc)
                 for train_record in record.train_records
             ]
             return np.mean(test_corruption)
