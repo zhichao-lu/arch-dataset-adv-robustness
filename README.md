@@ -5,8 +5,11 @@
 ![](./nares_search_space.png "NARes Search Space")
 
 Note:
+
 * Decision Vector: $[D_1, W_1, D_2, W_2, D_3, W_3]$, where $D_{i\in\{1,2,3\}} \in \{4,5,7,9,11\}$ and $W_{i\in\{1,2,3\}} \in \{8,10,12,14,16\}$.
+
 * Total Architectures: $5^6=15625$.
+
 * Each architecture has an arch_id for identification, set from 1 to 15625 by the ascending order of \#MACs.
 
 ## Preparation
@@ -25,7 +28,7 @@ python nas_benchmark.py -m algo=random_search,local_search,regularized_evolution
 python nas_benchmark.py -m algo=bananas seed="range(400)"
 ```
 
-NAS Benchmark Results: (Objective: VAL_PGD_ACC, Runs:)
+NAS Benchmark Results: (Objective: VAL_PGD_ACC, Runs: 400)
 
 | Accuracy        | Optimal | Random Search  | Local Search | RE             | BANANAS        |
 | --------------- | ------- | -------------- | ------------ | -------------- | -------------- |
@@ -38,7 +41,6 @@ NAS Benchmark Results: (Objective: VAL_PGD_ACC, Runs:)
 | Test PGD-CW     | 56.17   | 54.86±0.38     | 54.91±0.39   | **55.06±0.26** | 55.05±0.24     |
 | Test AA         | 53.48   | 52.18±0.39     | 52.24±0.39   | **52.45±0.28** | **52.45±0.25** |
 | Test Corruption | 80.22   | 78.89±0.36     | 78.90±0.36   | 78.90±0.24     | **78.91±0.22** |
-
 
 ## Access the dataset
 
@@ -66,9 +68,12 @@ for record in dataset.batch_query([wrn_34_10, wrn_70_16]):
     ...
 ```
 
-
-
-
 # Acknowledgement
 
 * [naszilla](https://github.com/naszilla/naszilla)
+
+* [RobustWRN](https://github.com/HanxunH/RobustWRN)
+
+* [torchattacks](https://github.com/Harry24k/adversarial-attacks-pytorch)
+
+* [auto-attack](https://github.com/fra31/auto-attack)
