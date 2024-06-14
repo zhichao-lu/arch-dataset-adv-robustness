@@ -1,5 +1,7 @@
 # 🐽 NARes: A Neural Architecture Dataset for Adversarial Robustness on WideResNet
 
+Official code for paper: "A Neural Architecture Dataset for Adversarial Robustness"
+
 ## Search Space Overview
 
 ![](./nares_search_space.png "NARes Search Space")
@@ -16,7 +18,11 @@ Note:
 
 1. Install packages: `pip install -r requirements.txt`
 
-2. Download and put `cifar10.jsonl` to path `data/`.
+2. Download dataset `nares.txz` and put the uncompressed file `cifar10.jsonl` to path `data/`.
+
+Optional:
+
+- Training Log & Model Weights: [Aliyun Drive]()
 
 ## Benchmark
 

@@ -1,0 +1,6 @@
+[submodule "evaluation"]
+	path = evaluation
+	url = https://github.com/ZaberKo/NARes-Eval
+[submodule "training"]
+	path = training
+	url = https://github.com/ZaberKo/NARes-Train
