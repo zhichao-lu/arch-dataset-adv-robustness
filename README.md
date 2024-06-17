@@ -22,7 +22,7 @@ Note:
 
 Optional:
 
-- Training Log & Model Weights: [Aliyun Drive]()
+- Training Log & Model Weights: [Aliyun Drive (Coming Soon)]()
 
 ## Benchmark
 
