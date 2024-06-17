@@ -18,7 +18,7 @@ Note:
 
 1. Install packages: `pip install -r requirements.txt`
 
-2. Download dataset `nares.txz` and put the uncompressed file `cifar10.jsonl` to path `data/`.
+2. Download dataset [`nares.txz`](https://github.com/zhichao-lu/arch-dataset-adv-robustness/releases/download/v1.0/nares.txz) and put the uncompressed file `cifar10.jsonl` to path `data/`.
 
 Optional:
 
