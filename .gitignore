@@ -253,12 +253,14 @@ $RECYCLE.BIN/
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,macos,windows
 
-!/data/
+
 
 /debug/
 /data/*
 /test/
 /fig*/
+
+!/data/.gitkeep
 
 vis*.py
 vis_nas_olddata/
